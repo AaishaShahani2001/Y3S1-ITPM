@@ -4,6 +4,8 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
 
 import Hero from "./components/Hero";
 import QuickInfo from "./components/QuickInfo";
@@ -28,7 +30,7 @@ export default function App() {
                 <Hero />
                 <QuickInfo />
                 <HowWeWork />
-                  {/*<Services />
+                {/*<Services />
                 <CTA /> */}
               </>
             }
@@ -39,7 +41,8 @@ export default function App() {
 
         <ToastContainer position="top-right" autoClose={3000} />
       </main>
-
+      {/* FOOTER */}
+      <Footer />
     </div>
   );
 }
