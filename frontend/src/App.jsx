@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 
 import Hero from "./components/Hero";
 import QuickInfo from "./components/QuickInfo";
+import HowWeWork from "./components/HowWeWork";
 
 
 export default function App() {
@@ -26,8 +27,8 @@ export default function App() {
               <>
                 <Hero />
                 <QuickInfo />
-                {/* <HowWeWork />
-                <Services />
+                <HowWeWork />
+                  {/*<Services />
                 <CTA /> */}
               </>
             }
