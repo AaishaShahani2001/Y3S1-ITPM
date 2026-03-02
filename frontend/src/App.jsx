@@ -5,6 +5,8 @@ import "react-toastify/dist/ReactToastify.css";
 
 import Navbar from "./components/Navbar";
 
+import Hero from "./components/Hero";
+import QuickInfo from "./components/QuickInfo";
 
 
 export default function App() {
@@ -14,8 +16,29 @@ export default function App() {
       {/* NAVBAR */}
       <Navbar />
 
+      {/* PAGE CONTENT */}
+      <main className="grow">
+        <Routes>
+          {/* Home Page */}
+          <Route
+            path="/"
+            element={
+              <>
+                <Hero />
+                <QuickInfo />
+                {/* <HowWeWork />
+                <Services />
+                <CTA /> */}
+              </>
+            }
+          />
 
-      <ToastContainer position="top-right" autoClose={3000} />
+        </Routes>
+
+
+        <ToastContainer position="top-right" autoClose={3000} />
+      </main>
+
     </div>
   );
 }
