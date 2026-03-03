@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import QuickInfo from "./components/QuickInfo";
 import HowWeWork from "./components/HowWeWork";
+import Services from "./components/Services";
 
 
 export default function App() {
@@ -30,8 +31,8 @@ export default function App() {
                 <Hero />
                 <QuickInfo />
                 <HowWeWork />
-                {/*<Services />
-                <CTA /> */}
+                <Services />
+                {/*<CTA /> */}
               </>
             }
           />
