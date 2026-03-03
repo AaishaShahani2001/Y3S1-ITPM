@@ -1,11 +1,9 @@
 package main
 
 import (
-	"time"
-	//"backend/controllers"
 	"backend/initializers"
-	//"backend/middleware"
-	//"backend/routes"
+	"backend/routes"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -14,7 +12,7 @@ import (
 func init() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectDB()
-	//initializers.SyncDatabase()
+	initializers.SyncDatabase()
 }
 
 func main() {
@@ -33,7 +31,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	//routes.SetupRoutes(r)
+	routes.SetupRoutes(r)
 
 	r.Run()
 }
