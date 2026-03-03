@@ -11,6 +11,7 @@ import HowWeWork from "./components/HowWeWork";
 import Services from "./components/Services";
 import CTA from "./components/CTA";
 
+import Auth from "./pages/Auth";
 
 
 export default function App() {
@@ -36,6 +37,10 @@ export default function App() {
               </>
             }
           />
+
+          {/* Auth Page */}
+          <Route path="/auth" element={<Auth />} />
+
 
         </Routes>
 
