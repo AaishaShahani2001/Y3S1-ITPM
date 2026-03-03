@@ -1,16 +1,16 @@
 import { Routes, Route } from "react-router-dom";
-
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
-
 import Hero from "./components/Hero";
 import QuickInfo from "./components/QuickInfo";
 import HowWeWork from "./components/HowWeWork";
 import Services from "./components/Services";
+import CTA from "./components/CTA";
+
 
 
 export default function App() {
@@ -32,7 +32,7 @@ export default function App() {
                 <QuickInfo />
                 <HowWeWork />
                 <Services />
-                {/*<CTA /> */}
+                <CTA />
               </>
             }
           />
