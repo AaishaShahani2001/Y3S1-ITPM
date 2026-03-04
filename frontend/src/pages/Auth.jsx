@@ -68,8 +68,13 @@ export default function Auth() {
       toast.success("Login successful!");
 
       // Store user
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          ...res.data.user,
+          token: res.data.token,
+        })
+      );
       // Redirect to home page
       setTimeout(() => {
         navigate("/");
