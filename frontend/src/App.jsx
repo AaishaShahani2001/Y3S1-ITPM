@@ -14,6 +14,7 @@ import CTA from "./components/CTA";
 import Auth from "./pages/Auth";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import CounselorDashboard from "./pages/counselor/CounselorDashboard";
 
 
 export default function App() {
@@ -44,6 +45,9 @@ export default function App() {
           <Route path="/auth" element={<Auth />} />
           {/* Admin Dashboard */}
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          {/* Counselor Dashboard */}
+          <Route path="/counselor-dashboard" element={<CounselorDashboard />} />
+
 
 
         </Routes>
