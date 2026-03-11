@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
+import StudentDashboard from "./pages/student/StudentDashboard";
 
 
 export default function App() {
@@ -47,6 +48,8 @@ export default function App() {
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Counselor Dashboard */}
           <Route path="/counselor-dashboard" element={<CounselorDashboard />} />
+          {/* Student Dashboard */}
+          <Route path="/student-dashboard" element={<StudentDashboard />} />
 
 
 
