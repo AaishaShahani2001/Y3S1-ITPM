@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaUserTie, FaGraduationCap, FaMapMarkerAlt, FaBriefcase, FaStar } from "react-icons/fa";
-import BecomeCounsellorModal from "../components/BecomeCounsellorModal";
 import groupDoctors from "../assets/groupDoctors.jpg";
 
 const CATEGORIES = [
