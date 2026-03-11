@@ -16,6 +16,8 @@ import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
 
+import Counsellors from "./pages/Counsellors";
+
 
 export default function App() {
   return (
@@ -47,6 +49,10 @@ export default function App() {
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Counselor Dashboard */}
           <Route path="/counselor-dashboard" element={<CounselorDashboard />} />
+
+          {/* Counselor Listing page */}
+          <Route path="/counsellors" element={<Counsellors />} />
+          
 
 
 
