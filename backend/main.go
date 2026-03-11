@@ -19,7 +19,7 @@ func main() {
 	r := gin.Default()
 
 	// PROXY WARNING
-	r.SetTrustedProxies([]string{"127.0.0.1"})
+	//r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	// CORS CONFIGURATION
 	r.Use(cors.New(cors.Config{
