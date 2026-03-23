@@ -19,6 +19,8 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 
 import Counsellors from "./pages/Counsellors";
 
+import EventList from "./pages/events/EventList";
+
 
 export default function App() {
   return (
@@ -57,6 +59,8 @@ export default function App() {
           <Route path="/counsellors" element={<Counsellors />} />
           
 
+          {/* Event List Page */}
+          <Route path="/events" element={<EventList />} />
 
 
         </Routes>
