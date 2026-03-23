@@ -20,6 +20,7 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import Counsellors from "./pages/Counsellors";
 
 import EventList from "./pages/events/EventList";
+import CreateEvent from "./pages/events/CreateEvent";
 
 
 export default function App() {
@@ -61,7 +62,7 @@ export default function App() {
 
           {/* Event List Page */}
           <Route path="/events" element={<EventList />} />
-
+          <Route path="/create-event" element={<CreateEvent />} />
 
         </Routes>
 
