@@ -103,6 +103,18 @@ export default function Navbar() {
                   <p className="text-slate-500 text-[10px] normal-case tracking-normal font-medium">Explore all amenities</p>
                 </div>
               </Link>
+
+                 {/* Event FEATURE */}
+              <Link to="/events" className="flex items-center gap-4 p-4 hover:bg-green-50 rounded-xl">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
+                  <FaUsers />
+                </div>
+                <div>
+                  <p className="text-slate-900 font-bold normal-case tracking-normal">Wellbeing Events</p>
+                  <p className="text-slate-500 text-[10px] normal-case tracking-normal font-medium">Register for events</p>
+                </div>
+              </Link>
+
             </div>
           </div>
 
@@ -158,6 +170,10 @@ export default function Navbar() {
             </Link>
             <Link to="/services" className="p-4 hover:bg-slate-50 flex items-center justify-between rounded-xl" onClick={() => setIsOpen(false)}>
               Other Services <FaClipboardList />
+            </Link>
+            {/* Event FEATURE */}
+            <Link to="/events" onClick={() => setIsOpen(false)}>
+              Wellbeing Events
             </Link>
           </div>
 
