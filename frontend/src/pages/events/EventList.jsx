@@ -19,7 +19,9 @@ function EventList() {
         }}>
           <h3>{event.title}</h3>
           <p>Capacity: {event.capacity}</p>
-          <button>Register</button>
+          <button onClick={() => window.location.href = "/register-event"}>
+            Register
+          </button>
         </div>
       ))}
     </div>
