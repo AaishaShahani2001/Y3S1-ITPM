@@ -4,13 +4,13 @@ import {
   FiUser, FiLogOut, FiMenu, FiX, FiActivity
 } from 'react-icons/fi';
 
-import AdminOverview from '../../components/admin/AdminOverview';
-import ManageBookings from '../../components/admin/ManageBookings';
-import AllBookings from '../../components/admin/AllBookings';
-import AllUsers from '../../components/admin/AllUsers';
-import DoctorApprovals from '../../components/admin/DoctorApprovals';
-import AddGuidancePrograms from '../../components/admin/AddGuidencePrograms';
-import AdminProfile from '../../components/admin/AdminProfile';
+// import AdminOverview from '../../components/admin/AdminOverview';
+// import ManageBookings from '../../components/admin/ManageBookings';
+// import AllBookings from '../../components/admin/AllBookings';
+// import AllUsers from '../../components/admin/AllUsers';
+// import DoctorApprovals from '../../components/admin/DoctorApprovals';
+// import AddGuidancePrograms from '../../components/admin/AddGuidencePrograms';
+// import AdminProfile from '../../components/admin/AdminProfile';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
