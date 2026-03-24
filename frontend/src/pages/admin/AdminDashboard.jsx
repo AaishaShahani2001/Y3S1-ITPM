@@ -26,10 +26,10 @@ const AdminDashboard = () => {
   //   { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
   // ];
 
-  const renderContent = () => {
-    const activeItem = menuItems.find(item => item.name === activeTab);
-    return activeItem ? activeItem.component : <AdminOverview />;
-  };
+  // const renderContent = () => {
+  //   const activeItem = menuItems.find(item => item.name === activeTab);
+  //   return activeItem ? activeItem.component : <AdminOverview />;
+  // };
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans text-slate-900">
@@ -53,7 +53,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Sidebar Navigation */}
-        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-hide">
+        {/* <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-hide">
           {menuItems.map((item) => (
             <button
               key={item.name}
@@ -71,7 +71,7 @@ const AdminDashboard = () => {
               )}
             </button>
           ))}
-        </nav>
+        </nav> */}
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-slate-50">
@@ -118,11 +118,11 @@ const AdminDashboard = () => {
         </header>
 
         {/* Content Section */}
-        <div className="flex-1 overflow-y-auto p-8 scroll-smooth bg-[#f8fafc]">
+        {/* <div className="flex-1 overflow-y-auto p-8 scroll-smooth bg-[#f8fafc]">
           <div className="max-w-350 mx-auto pb-10">
             {renderContent()}
           </div>
-        </div>
+        </div> */}
       </main>
     </div>
   );
