@@ -16,15 +16,15 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-  const menuItems = [
-    { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
-    { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
-    { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
-    { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
-    { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
-    { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
-    { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
-  ];
+  // const menuItems = [
+  //   { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
+  //   { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
+  //   { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
+  //   { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
+  //   { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
+  //   { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
+  //   { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
+  // ];
 
   const renderContent = () => {
     const activeItem = menuItems.find(item => item.name === activeTab);
