@@ -4,11 +4,11 @@ import {
   FaSignOutAlt, FaBell, FaSearch, FaUserMd
 } from "react-icons/fa";
 
-import OverviewTab from "../../components/student/OverviewTab";
-import AppointmentsTab from "../../components/student/AppointmentsTab";
-import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
-import ReportsTab from "../../components/student/ReportsTab";
-import SettingsTab from "../../components/student/SettingsTab";
+// import OverviewTab from "../../components/student/OverviewTab";
+// import AppointmentsTab from "../../components/student/AppointmentsTab";
+// import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
+// import ReportsTab from "../../components/student/ReportsTab";
+// import SettingsTab from "../../components/student/SettingsTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaThLarge /> },
@@ -88,13 +88,13 @@ export default function StudentDashboard() {
         </header>
 
         {/* TAB CONTENT */}
-        <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
+        {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "treatment" && <TreatmentPlanTab />}
           {activeTab === "reports" && <ReportsTab />}
           {activeTab === "settings" && <SettingsTab />}
-        </div>
+        </div> */}
       </main>
     </div>
   );

@@ -3,11 +3,11 @@ import {
   FaUserCircle, FaCalendarPlus, FaClipboardList,
   FaStethoscope, FaChartLine, FaSignOutAlt, FaBell, FaSearch
 } from "react-icons/fa";
-import OverviewTab from "../../components/counselor/OverviewTab";
-import ProfileTab from "../../components/counselor/ProfileTab";
-import AvailabilityTab from "../../components/counselor/AvailabilityTab";
-import AppointmentsTab from "../../components/counselor/AppointmentsTab";
-import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+// import OverviewTab from "../../components/counselor/OverviewTab";
+// import ProfileTab from "../../components/counselor/ProfileTab";
+// import AvailabilityTab from "../../components/counselor/AvailabilityTab";
+// import AppointmentsTab from "../../components/counselor/AppointmentsTab";
+// import ManagePlansTab from "../../components/counselor/ManagePlansTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaChartLine /> },
@@ -87,13 +87,13 @@ export default function CounselorDashboard() {
         </header>
 
         {/* TAB CONTENT */}
-        <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
+        {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "profile" && <ProfileTab />}
           {activeTab === "availability" && <AvailabilityTab />}
           {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "manage-plans" && <ManagePlansTab />}
-        </div>
+        </div> */}
       </main>
     </div>
   );
