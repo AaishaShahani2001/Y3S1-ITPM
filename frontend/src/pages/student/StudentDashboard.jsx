@@ -5,7 +5,7 @@ import {
 } from "react-icons/fa";
 
 // import OverviewTab from "../../components/student/OverviewTab";
-// import AppointmentsTab from "../../components/student/AppointmentsTab";
+import AppointmentsTab from "../../components/student/AppointmentsTab";
 // import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 // import ReportsTab from "../../components/student/ReportsTab";
 // import SettingsTab from "../../components/student/SettingsTab";
@@ -88,9 +88,13 @@ export default function StudentDashboard() {
         </header>
 
         {/* TAB CONTENT */}
+        <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
+          {activeTab === "appointments" && <AppointmentsTab />}
+        </div>
+
+        
         {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
-          {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "treatment" && <TreatmentPlanTab />}
           {activeTab === "reports" && <ReportsTab />}
           {activeTab === "settings" && <SettingsTab />}
