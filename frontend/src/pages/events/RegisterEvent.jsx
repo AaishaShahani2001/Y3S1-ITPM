@@ -46,7 +46,7 @@ export default function RegisterEvent() {
   });
 };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
   e.preventDefault();
 
   if (
@@ -78,7 +78,43 @@ export default function RegisterEvent() {
   }
 
   setError("");
-  setSuccess("🎉 Registration Confirmed!");
+
+  try {
+    const res = await fetch("http://localhost:3000/api/events/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        event_Id: event.id,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        university: form.university,
+        faculty:
+          form.faculty === "Other" ? form.otherFaculty : form.faculty,
+        level: form.level,
+        degree: form.degree,
+      }),
+    });
+
+    const data = await res.json();
+
+      if (res.ok) {
+      setSuccess("🎉 Registration Confirmed!");
+      
+      setTimeout(() => {
+        window.location.href = "/student-dashboard";
+      }, 2000);
+      
+    } else {
+      setError(data.message || "Registration failed");
+    }
+
+  } catch (err) {
+    console.error(err);
+    setError("Server error");
+  }
 };
 
   if (!event) return <div className="p-10">Event not found</div>;

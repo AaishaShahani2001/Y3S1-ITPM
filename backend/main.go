@@ -32,6 +32,8 @@ func main() {
 	}))
 
 	routes.SetupRoutes(r)
+	routes.EventRoutes(r)
+
 
 	r.Run()
 }
