@@ -6,7 +6,7 @@ import {
 
 // import OverviewTab from "../../components/student/OverviewTab";
 import AppointmentsTab from "../../components/student/AppointmentsTab";
-// import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
+import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 // import ReportsTab from "../../components/student/ReportsTab";
 // import SettingsTab from "../../components/student/SettingsTab";
 
@@ -90,12 +90,12 @@ export default function StudentDashboard() {
         {/* TAB CONTENT */}
         <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "appointments" && <AppointmentsTab />}
+          {activeTab === "treatment" && <TreatmentPlanTab />}
         </div>
 
         
         {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
-          {activeTab === "treatment" && <TreatmentPlanTab />}
           {activeTab === "reports" && <ReportsTab />}
           {activeTab === "settings" && <SettingsTab />}
         </div> */}
