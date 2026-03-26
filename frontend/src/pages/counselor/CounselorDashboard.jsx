@@ -7,7 +7,7 @@ import {
 // import ProfileTab from "../../components/counselor/ProfileTab";
 // import AvailabilityTab from "../../components/counselor/AvailabilityTab";
 import AppointmentsTab from "../../components/counselor/AppointmentsTab";
-// import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+import ManagePlansTab from "../../components/counselor/ManagePlansTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaChartLine /> },
@@ -89,7 +89,7 @@ export default function CounselorDashboard() {
         {/* TAB CONTENT */}
         <div className="p-6 md:md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "appointments" && <AppointmentsTab />}
-
+          {activeTab === "manage-plans" && <ManagePlansTab />}
         </div>
 
         
@@ -97,7 +97,7 @@ export default function CounselorDashboard() {
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "profile" && <ProfileTab />}
           {activeTab === "availability" && <AvailabilityTab />}
-          {activeTab === "manage-plans" && <ManagePlansTab />}
+          
         </div> */}
       </main>
     </div>
