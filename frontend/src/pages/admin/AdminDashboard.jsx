@@ -7,7 +7,7 @@ import AdminOverview from '../../components/admin/AdminOverview';
 // import ManageBookings from '../../components/admin/ManageBookings';
 import AllBookings from '../../components/admin/AllBookings';
 // import AllUsers from '../../components/admin/AllUsers';
-// import DoctorApprovals from '../../components/admin/DoctorApprovals';
+import DoctorApprovals from '../../components/admin/DoctorApprovals';
 // import AddGuidancePrograms from '../../components/admin/AddGuidencePrograms';
 // import AdminProfile from '../../components/admin/AdminProfile';
 
@@ -20,7 +20,7 @@ const AdminDashboard = () => {
     // { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
     { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
     // { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
-    // { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
+    { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
     // { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
     // { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
   ];
