@@ -6,6 +6,7 @@ import {
 
 // import OverviewTab from "../../components/student/OverviewTab";
 import AppointmentsTab from "../../components/student/AppointmentsTab";
+import MyWaitListTab from "../../components/student/MyWaitListTab";
 import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 // import ReportsTab from "../../components/student/ReportsTab";
 // import SettingsTab from "../../components/student/SettingsTab";
@@ -13,6 +14,7 @@ import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaThLarge /> },
   { id: "appointments", label: "Appointments", icon: <FaCalendarCheck /> },
+  { id: "waitlist", label: "Wait List", icon: <FaCalendarCheck /> },
   { id: "treatment", label: "Treatment Plan", icon: <FaUserMd /> },
   { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
   { id: "settings", label: "Settings", icon: <FaCog /> },
@@ -90,6 +92,7 @@ export default function StudentDashboard() {
         {/* TAB CONTENT */}
         <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "appointments" && <AppointmentsTab />}
+          {activeTab === "waitlist" && <MyWaitListTab />}
           {activeTab === "treatment" && <TreatmentPlanTab />}
         </div>
 
