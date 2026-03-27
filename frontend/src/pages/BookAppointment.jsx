@@ -24,6 +24,33 @@ const COUNSELLORS = [
   { id: "5", name: "Ms. Aruni Jay", category: "Emotional Regulation Expert", experience: 6, rating: 4.7, image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=300&h=300", workplace: "Wellness Center W102" },
 ];
 
+const SCHEDULE_BY_DATE = {
+  Tomorrow: [
+    { time: "09:00 AM", isBooked: true },
+    { time: "10:30 AM", isBooked: false },
+    { time: "01:00 PM", isBooked: true },
+    { time: "03:30 PM", isBooked: false },
+  ],
+  "Mar 4, Wed": [
+    { time: "09:00 AM", isBooked: false },
+    { time: "10:30 AM", isBooked: true },
+    { time: "01:00 PM", isBooked: false },
+    { time: "03:30 PM", isBooked: true },
+  ],
+  "Mar 5, Thu": [
+    { time: "09:00 AM", isBooked: false },
+    { time: "10:30 AM", isBooked: false },
+    { time: "01:00 PM", isBooked: true },
+    { time: "03:30 PM", isBooked: false },
+  ],
+  "Mar 6, Fri": [
+    { time: "09:00 AM", isBooked: true },
+    { time: "10:30 AM", isBooked: true },
+    { time: "01:00 PM", isBooked: false },
+    { time: "03:30 PM", isBooked: false },
+  ],
+};
+
 export default function BookAppointment() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -41,6 +68,7 @@ export default function BookAppointment() {
   const [selectedCounsellorId, setSelectedCounsellorId] = useState(id || "");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [waitlistEntries, setWaitlistEntries] = useState([]);
 
   const [formData, setFormData] = useState({
     age: "",
@@ -63,6 +91,11 @@ export default function BookAppointment() {
     if (!currentMoodObj) return [];
     return COUNSELLORS.filter(c => c.category === currentMoodObj.suggest);
   }, [currentMoodObj]);
+
+  const slotsForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    return SCHEDULE_BY_DATE[selectedDate] || [];
+  }, [selectedDate]);
 
   const getUrgency = (score) => {
     if (score <= 3) return { label: "Normal", color: "text-green-600 bg-green-50 border-green-100" };
@@ -138,6 +171,33 @@ export default function BookAppointment() {
   };
 
   const prevStep = () => setStep(step - 1);
+
+  const handleJoinWaitlist = (slotTime) => {
+    if (!selectedDate) {
+      setErrors((prev) => ({ ...prev, selectedDate: "Please select a date first." }));
+      toast.error("Please select a date first.");
+      return;
+    }
+
+    const counsellorId = selectedCounsellorId || id;
+    const alreadyJoined = waitlistEntries.some(
+      (entry) =>
+        entry.counsellorId === counsellorId &&
+        entry.date === selectedDate &&
+        entry.slot === slotTime
+    );
+
+    if (alreadyJoined) {
+      toast.error("You are already in the waitlist for this slot.");
+      return;
+    }
+
+    setWaitlistEntries((prev) => [
+      ...prev,
+      { counsellorId, date: selectedDate, slot: slotTime },
+    ]);
+    toast.success(`Joined waitlist for ${selectedDate} at ${slotTime}.`);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -431,7 +491,11 @@ export default function BookAppointment() {
                         {["Tomorrow", "Mar 4, Wed", "Mar 5, Thu", "Mar 6, Fri"].map(date => (
                           <button
                             key={date}
-                            onClick={() => setSelectedDate(date)}
+                            onClick={() => {
+                              setSelectedDate(date);
+                              setSelectedSlot("");
+                              setErrors((prev) => ({ ...prev, selectedDate: "", selectedSlot: "" }));
+                            }}
                             className={`p-3 text-xs rounded-xl border-2 font-bold transition-all ${selectedDate === date
                               ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100'
                               : 'bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100 hover:bg-white'}`}
@@ -447,17 +511,53 @@ export default function BookAppointment() {
                         <FaClock className="text-blue-600" /> Available Slots
                       </h4>
                       <div className="grid grid-cols-2 gap-2">
-                        {["09:00 AM", "10:30 AM", "01:00 PM", "03:30 PM"].map(slot => (
-                          <button
-                            key={slot}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`p-3 text-xs rounded-xl border-2 font-bold transition-all ${selectedSlot === slot
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100'
-                              : 'bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100 hover:bg-white'}`}
-                          >
-                            {slot}
-                          </button>
-                        ))}
+                        {(selectedDate ? slotsForSelectedDate : []).map((slotItem) => {
+                          const slot = slotItem.time;
+                          const joinedWaitlist = waitlistEntries.some(
+                            (entry) =>
+                              entry.counsellorId === (selectedCounsellorId || id) &&
+                              entry.date === selectedDate &&
+                              entry.slot === slot
+                          );
+                          return (
+                            <div key={slot} className="space-y-1">
+                              <button
+                                onClick={() => {
+                                  if (slotItem.isBooked) return;
+                                  setSelectedSlot(slot);
+                                  setErrors((prev) => ({ ...prev, selectedSlot: "" }));
+                                }}
+                                className={`w-full p-3 text-xs rounded-xl border-2 font-bold transition-all ${
+                                  slotItem.isBooked
+                                    ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                                    : selectedSlot === slot
+                                      ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100"
+                                      : "bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100 hover:bg-white"
+                                }`}
+                              >
+                                {slot} {slotItem.isBooked ? "• Booked" : ""}
+                              </button>
+                              {slotItem.isBooked && (
+                                <button
+                                  onClick={() => handleJoinWaitlist(slot)}
+                                  disabled={joinedWaitlist}
+                                  className={`w-full py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    joinedWaitlist
+                                      ? "bg-emerald-100 text-emerald-700 cursor-not-allowed"
+                                      : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                  }`}
+                                >
+                                  {joinedWaitlist ? "Waitlisted" : "Join Waitlist"}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {!selectedDate && (
+                          <p className="col-span-2 text-xs text-slate-400 font-bold">
+                            Select a date to view available and booked slots.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
