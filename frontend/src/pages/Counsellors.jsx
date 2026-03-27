@@ -14,7 +14,7 @@ const CATEGORIES = [
   "Emotional Regulation Expert"
 ];
 
-// Frontend dummy counsellor records (no backend dependency).
+// Frontend dummy counsellor records.
 const DUMMY_COUNSELLORS = [
   {
     id: "1",
