@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import {
-  FiGrid, FiUsers, FiCalendar, FiUserCheck, FiPlusSquare,
-  FiUser, FiLogOut, FiMenu, FiX, FiActivity
+  FiGrid, FiCalendar, FiUserCheck, FiLogOut, FiMenu, FiX
 } from 'react-icons/fi';
 
-// import AdminOverview from '../../components/admin/AdminOverview';
+import AdminOverview from '../../components/admin/AdminOverview';
 // import ManageBookings from '../../components/admin/ManageBookings';
-// import AllBookings from '../../components/admin/AllBookings';
+import AllBookings from '../../components/admin/AllBookings';
 // import AllUsers from '../../components/admin/AllUsers';
 // import DoctorApprovals from '../../components/admin/DoctorApprovals';
 // import AddGuidancePrograms from '../../components/admin/AddGuidencePrograms';
@@ -16,20 +15,20 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-  // const menuItems = [
-  //   { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
-  //   { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
-  //   { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
-  //   { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
-  //   { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
-  //   { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
-  //   { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
-  // ];
+  const menuItems = [
+    { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
+    // { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
+    { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
+    // { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
+    // { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
+    // { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
+    // { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
+  ];
 
-  // const renderContent = () => {
-  //   const activeItem = menuItems.find(item => item.name === activeTab);
-  //   return activeItem ? activeItem.component : <AdminOverview />;
-  // };
+  const renderContent = () => {
+    const activeItem = menuItems.find(item => item.name === activeTab);
+    return activeItem ? activeItem.component : <AdminOverview />;
+  };
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans text-slate-900">
@@ -53,7 +52,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Sidebar Navigation */}
-        {/* <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-hide">
+        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-hide">
           {menuItems.map((item) => (
             <button
               key={item.name}
@@ -71,7 +70,7 @@ const AdminDashboard = () => {
               )}
             </button>
           ))}
-        </nav> */}
+        </nav>
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-slate-50">
@@ -118,11 +117,11 @@ const AdminDashboard = () => {
         </header>
 
         {/* Content Section */}
-        {/* <div className="flex-1 overflow-y-auto p-8 scroll-smooth bg-[#f8fafc]">
+        <div className="flex-1 overflow-y-auto p-8 scroll-smooth bg-[#f8fafc]">
           <div className="max-w-350 mx-auto pb-10">
             {renderContent()}
           </div>
-        </div> */}
+        </div>
       </main>
     </div>
   );
