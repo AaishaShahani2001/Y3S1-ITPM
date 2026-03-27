@@ -1,25 +1,24 @@
 import React, { useState } from "react";
 import {
-  FaUserCircle, FaCalendarPlus, FaClipboardList, FaCalendar,
-  FaStethoscope, FaChartLine, FaSignOutAlt, FaBell, FaSearch
+  FaThLarge, FaCalendarCheck, FaFileAlt, FaCog,
+  FaSignOutAlt, FaBell, FaSearch, FaUserMd
 } from "react-icons/fa";
-// import OverviewTab from "../../components/counselor/OverviewTab";
-import Calendar from "../../components/counselor/Calendar";
-// import ProfileTab from "../../components/counselor/ProfileTab";
-// import AvailabilityTab from "../../components/counselor/AvailabilityTab";
-import AppointmentsTab from "../../components/counselor/AppointmentsTab";
-import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+
+// import OverviewTab from "../../components/student/OverviewTab";
+import AppointmentsTab from "../../components/student/AppointmentsTab";
+import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
+// import ReportsTab from "../../components/student/ReportsTab";
+// import SettingsTab from "../../components/student/SettingsTab";
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: <FaChartLine /> },
-  { id: "calendar", label: "Calendar", icon: <FaCalendar /> },
-  { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
-  { id: "availability", label: "Manage Availability", icon: <FaCalendarPlus /> },
-  { id: "appointments", label: "Student Appointments", icon: <FaClipboardList /> },
-  { id: "manage-plans", label: "Manage Treatment Plans", icon: <FaStethoscope /> },
+  { id: "overview", label: "Overview", icon: <FaThLarge /> },
+  { id: "appointments", label: "Appointments", icon: <FaCalendarCheck /> },
+  { id: "treatment", label: "Treatment Plan", icon: <FaUserMd /> },
+  { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
+  { id: "settings", label: "Settings", icon: <FaCog /> },
 ];
 
-export default function CounselorDashboard() {
+export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
@@ -65,7 +64,7 @@ export default function CounselorDashboard() {
             <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
             <input
               type="text"
-              placeholder="Search appointments, students, cases..."
+              placeholder="Search appointments, reports..."
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-100 transition-all outline-none"
             />
           </div>
@@ -78,29 +77,27 @@ export default function CounselorDashboard() {
             <div className="h-8 w-px bg-slate-100 mx-1 hidden md:block"></div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden md:block">
-                <p className="text-xs font-black tracking-tight">Dr. Nethmi Perera</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Clinical Counselor</p>
+                <p className="text-xs font-black tracking-tight">Hiruki Rathnayake</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Student</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-slate-200 overflow-hidden ring-2 ring-slate-50 ring-offset-1">
-                <img src="https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=100&h=100" alt="Avatar" />
+                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100" alt="Avatar" />
               </div>
             </div>
           </div>
         </header>
 
         {/* TAB CONTENT */}
-        <div className="p-6 md:md:p-10 max-w-6xl w-full mx-auto">
+        <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "appointments" && <AppointmentsTab />}
-          {activeTab === "calendar" && <Calendar />}
-          {activeTab === "manage-plans" && <ManagePlansTab />}
+          {activeTab === "treatment" && <TreatmentPlanTab />}
         </div>
 
         
         {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
-          {activeTab === "profile" && <ProfileTab />}
-          {activeTab === "availability" && <AvailabilityTab />}
-          
+          {activeTab === "reports" && <ReportsTab />}
+          {activeTab === "settings" && <SettingsTab />}
         </div> */}
       </main>
     </div>

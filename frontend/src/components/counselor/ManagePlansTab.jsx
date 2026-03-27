@@ -2,7 +2,9 @@ import React from 'react'
 
 const ManagePlansTab = () => {
   return (
-    <div>ManagePlansTab</div>
+    <div>
+      Manage Treatment Plans for Students
+    </div>
   )
 }
 

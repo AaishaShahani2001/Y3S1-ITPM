@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import {
-  FiGrid, FiUsers, FiCalendar, FiUserCheck, FiPlusSquare,
-  FiUser, FiLogOut, FiMenu, FiX, FiActivity
+  FiGrid, FiCalendar, FiUserCheck, FiLogOut, FiMenu, FiX
 } from 'react-icons/fi';
 
 import AdminOverview from '../../components/admin/AdminOverview';
-import ManageBookings from '../../components/admin/ManageBookings';
+// import ManageBookings from '../../components/admin/ManageBookings';
 import AllBookings from '../../components/admin/AllBookings';
-import AllUsers from '../../components/admin/AllUsers';
-import DoctorApprovals from '../../components/admin/DoctorApprovals';
-import AddGuidancePrograms from '../../components/admin/AddGuidencePrograms';
-import AdminProfile from '../../components/admin/AdminProfile';
+// import AllUsers from '../../components/admin/AllUsers';
+// import DoctorApprovals from '../../components/admin/DoctorApprovals';
+// import AddGuidancePrograms from '../../components/admin/AddGuidencePrograms';
+// import AdminProfile from '../../components/admin/AdminProfile';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -18,12 +17,12 @@ const AdminDashboard = () => {
 
   const menuItems = [
     { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
-    { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
+    // { name: 'Manage Bookings', icon: <FiActivity />, component: <ManageBookings /> },
     { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
-    { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
-    { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
-    { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
-    { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
+    // { name: 'All Users', icon: <FiUsers />, component: <AllUsers /> },
+    // { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
+    // { name: 'Add Guidance', icon: <FiPlusSquare />, component: <AddGuidancePrograms /> },
+    // { name: 'Profile', icon: <FiUser />, component: <AdminProfile /> },
   ];
 
   const renderContent = () => {
