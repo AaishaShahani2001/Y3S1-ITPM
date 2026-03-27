@@ -1,58 +1,113 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaUserTie, FaGraduationCap, FaMapMarkerAlt, FaBriefcase, FaStar } from "react-icons/fa";
+import BecomeCounsellorModal from "../components/BecomeCounsellorModal";
 import groupDoctors from "../assets/groupDoctors.jpg";
 
+// Category filter options shown as chips.
 const CATEGORIES = [
   "Stress Management",
   "Academic Support",
   "Career Guidance",
   "Personal Development",
+  "Mental Health Specialist",
+  "Emotional Regulation Expert"
+];
+
+// Frontend dummy counsellor records.
+const DUMMY_COUNSELLORS = [
+  {
+    id: "1",
+    name: "Dr. Nethmi Perera",
+    category: "Stress Management",
+    experience: 5,
+    workplace: "New Building F1301",
+    available: true,
+    rating: 4.9,
+    bio: "Specializes in stress recovery plans, burnout prevention, and practical coping strategies for students.",
+    image: "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200",
+  },
+  {
+    id: "2",
+    name: "Mr. Dilan Fernando",
+    category: "Academic Support",
+    experience: 3,
+    workplace: "Main Building A202",
+    available: true,
+    rating: 4.7,
+    bio: "Supports students with study structure, academic pressure, and exam confidence.",
+    image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200&h=200",
+  },
+  {
+    id: "3",
+    name: "Ms. Kavindi Silva",
+    category: "Career Guidance",
+    experience: 4,
+    workplace: "Wellness Center W101",
+    available: false,
+    rating: 4.8,
+    bio: "Guides students through career planning, CV building, and interview readiness.",
+    image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=200&h=200",
+  },
+  {
+    id: "4",
+    name: "Dr. Kamal Perera",
+    category: "Mental Health Specialist",
+    experience: 10,
+    workplace: "Medical Wing M10",
+    available: true,
+    rating: 5.0,
+    bio: "Experienced in anxiety, depression, and long-term therapeutic mental health support.",
+    image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=200&h=200",
+  },
+  {
+    id: "5",
+    name: "Ms. Aruni Jay",
+    category: "Emotional Regulation Expert",
+    experience: 6,
+    workplace: "Wellness Center W102",
+    available: true,
+    rating: 4.6,
+    bio: "Focuses on emotional control techniques, resilience building, and healthy communication patterns.",
+    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=200&h=200",
+  },
+  {
+    id: "6",
+    name: "Mr. Sahan Wijesinghe",
+    category: "Personal Development",
+    experience: 7,
+    workplace: "Student Hub H12",
+    available: false,
+    rating: 4.5,
+    bio: "Helps students with confidence building, goal setting, and self-growth routines.",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200",
+  },
 ];
 
 export default function Counsellors() {
+  // Search query state.
   const [q, setQ] = useState("");
+  // Selected category chip.
   const [cat, setCat] = useState("All");
+  // Modal visibility state for "Become a Counsellor".
   const [openApply, setOpenApply] = useState(false);
+  // Data source for counsellor cards.
+  const [counsellors, setCounsellors] = useState([]);
+  // Loader state to keep the same loading UI.
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const counsellors = [
-    {
-      id: 1,
-      name: "Dr. Nethmi Perera",
-      category: "Stress Management",
-      experience: 5,
-      workplace: "New Building F1301",
-      available: true,
-      rating: 4.8,
-      bio: "Specializing in student mental health and academic stress management.",
-      image: "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200"
-    },
-    {
-      id: 2,
-      name: "Mr. Dilan Fernando",
-      category: "Academic Support",
-      experience: 3,
-      workplace: "Main Building A202",
-      available: false,
-      rating: 4.5,
-      bio: "Helping students navigate academic challenges and improve performance.",
-      image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200&h=200"
-    },
-    {
-      id: 3,
-      name: "Ms. Kavindi Silva",
-      category: "Career Guidance",
-      experience: 4,
-      workplace: "Wellness Center W101",
-      available: true,
-      rating: 4.9,
-      bio: "Expert in career counseling and personal developmental growth.",
-      image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=200&h=200"
-    },
-  ];
+  // Simulate async load using dummy data to keep existing UX.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCounsellors(DUMMY_COUNSELLORS);
+      setLoading(false);
+    }, 350);
 
-  /* FILTERING */
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Combined filter: category first, then search by name/specialization.
   const filtered = useMemo(() => {
     const byCat =
       cat === "All"
@@ -68,7 +123,7 @@ export default function Counsellors() {
       : byCat;
 
     return bySearch;
-  }, [q, cat]);
+  }, [q, cat, counsellors]);
 
   return (
     <main className="min-h-screen bg-slate-50 pb-16">
@@ -133,7 +188,11 @@ export default function Counsellors() {
 
       {/* ================= GRID SECTION ================= */}
       <section className="mx-auto max-w-6xl px-6 py-12">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-white border-2 border-dashed border-slate-200 p-12 text-center text-slate-600 rounded-4xl">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <FaSearch className="text-xl text-slate-300" />
@@ -179,6 +238,7 @@ export default function Counsellors() {
                         {c.category}
                       </div>
                     </div>
+                    
                     <div className="flex items-center bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-100">
                       <FaStar className="text-yellow-400 text-[10px] mr-1" />
                       <span className="text-yellow-700 font-black text-[10px]">{c.rating}</span>
