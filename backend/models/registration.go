@@ -3,8 +3,13 @@ package models
 import "time"
 
 type Registration struct {
-	ID         uint      `gorm:"primaryKey"`
-	EventID    int
+	ID uint `gorm:"primaryKey"`
+
+	UserID  uint `gorm:"uniqueIndex:idx_user_event"` // 🔥 COMPOSITE UNIQUE
+	EventID uint `gorm:"uniqueIndex:idx_user_event"`
+
+	Event Event `gorm:"foreignKey:EventID"`
+
 	Name       string
 	Email      string
 	Phone      string
@@ -12,5 +17,7 @@ type Registration struct {
 	Faculty    string
 	Level      string
 	Degree     string
-	CreatedAt  time.Time
+	Gender     string
+
+	CreatedAt time.Time
 }

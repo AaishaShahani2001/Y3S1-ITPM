@@ -1,107 +1,142 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const events = [
-  {
-    id: 1,
-    title: "Stress Management Workshop",
-    date: "25 March 2026",
-    location: "Main Hall",
-    capacity: 50,
-    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f"
-  },
-  {
-    id: 2,
-    title: "Mindfulness Session",
-    date: "30 March 2026",
-    location: "Wellbeing Center",
-    capacity: 30,
-    image: "https://images.unsplash.com/photo-1506126613408-eca07ce68773"
-  },
-  {
-    id: 3,
-    title: "Career Growth Seminar",
-    date: "5 April 2026",
-    location: "Auditorium",
-    capacity: 100,
-    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df"
-  }
-];
+import { motion } from "framer-motion";
 
 export default function EventList() {
+  const [events, setEvents] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
 
-  // 🔥 AUTO SLIDER
+  // FETCH EVENTS
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % events.length);
-    }, 2500);
-
-    return () => clearInterval(interval);
+    fetch("http://localhost:3000/api/events")
+      .then((res) => res.json())
+      .then((data) => setEvents(data))
+      .catch((err) => console.error(err));
   }, []);
 
-  return (
-    <div className="bg-gray-50 min-h-screen">
+  // AUTO SLIDER
+  useEffect(() => {
+    if (events.length === 0) return;
 
-      {/* 🔥 SMALL SLIDER (NOT FULL WIDTH) */}
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % events.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [events]);
+
+  return (
+    <div className="bg-gradient-to-br from-gray-50 via-white to-blue-50 min-h-screen">
+
+      {/* 🔥 HERO SLIDER */}
       <div className="max-w-6xl mx-auto mt-6 px-6">
-        <div className="relative h-[180px] rounded-2xl overflow-hidden shadow-lg">
-          <img
-            src={events[currentSlide].image}
-            alt="event"
-            className="w-full h-full object-cover transition-all duration-700"
-          />
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <h2 className="text-white text-xl font-bold">
-              {events[currentSlide].title}
-            </h2>
-          </div>
-        </div>
+        {events.length > 0 && (
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6 }}
+            className="relative h-[200px] rounded-3xl overflow-hidden shadow-2xl"
+          >
+            <img
+              src={
+                events[currentSlide].Image
+                  ? `http://localhost:3000/${events[currentSlide].Image}`
+                  : "https://via.placeholder.com/800x300"
+              }
+              className="w-full h-full object-cover"
+            />
+
+            {/* DARK GRADIENT */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
+
+            {/* TEXT */}
+            <div className="absolute bottom-6 left-6">
+              <h2 className="text-white text-2xl font-bold">
+                {events[currentSlide].Title}
+              </h2>
+              <p className="text-gray-200 text-sm mt-1">
+                Discover upcoming experiences
+              </p>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* 🔥 TITLE */}
       <div className="max-w-7xl mx-auto px-6 py-10">
-        <h2 className="text-2xl font-bold mb-6">Upcoming Events</h2>
+        <h2 className="text-3xl font-bold mb-8 text-gray-800">
+          Upcoming Events
+        </h2>
 
-        {/* 🔥 EVENT CARDS */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event) => (
-            <div
-              key={event.id}
-              onClick={() => navigate(`/events/${event.id}`)}
-              className="cursor-pointer bg-white rounded-2xl shadow hover:shadow-2xl transition duration-300 overflow-hidden hover:-translate-y-2"
+        {/* 🔥 CARDS */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {events.map((event, index) => (
+            <motion.div
+              key={event.ID}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => navigate(`/events/${event.ID}`)}
+              className="group cursor-pointer rounded-3xl overflow-hidden bg-white/70 backdrop-blur-xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300"
             >
-              <img
-                src={event.image}
-                alt="event"
-                className="h-48 w-full object-cover group-hover:scale-105 transition duration-500"
-              />
+              {/* IMAGE */}
+              <div className="relative overflow-hidden">
+                <img
+                  src={
+                    event.Image
+                      ? `http://localhost:3000/${event.Image}`
+                      : "https://via.placeholder.com/300"
+                  }
+                  className="h-52 w-full object-cover group-hover:scale-110 transition duration-500"
+                />
 
-              <div className="p-4">
-                <h3 className="font-bold text-lg hover:text-blue-600 transition">
-                  {event.title}
+                {/* OVERLAY */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+              </div>
+
+              {/* CONTENT */}
+              <div className="p-5 space-y-2">
+                <h3 className="font-semibold text-lg text-gray-800 group-hover:text-blue-600 transition">
+                  {event.Title}
                 </h3>
 
-                <p className="text-sm text-gray-500 mt-1">
-                  📅 {event.date}
-                </p>
                 <p className="text-sm text-gray-500">
-                  📍 {event.location}
+                  📅 {event.Date}
                 </p>
 
-                <div className="mt-2 text-sm text-blue-600 font-semibold">
-                  Capacity: {event.capacity}
+                <p className="text-sm text-gray-500">
+                  📍 {event.Location || "Main Hall"}
+                </p>
+
+                <div className="text-sm font-medium text-blue-600">
+                  Capacity: {event.Capacity}
                 </div>
 
-                {/* 🔥 HOVER EFFECT BUTTON TEXT (NO CLICK BUTTON) */}
-                <p className="mt-4 text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition">
-                  View Details →
-                </p>
+                {/* CTA */}
+                <div className="pt-3">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium shadow hover:shadow-lg transition"
+                  >
+                    View Details →
+                  </motion.button>
+                </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
+
+        {/* EMPTY STATE */}
+        {events.length === 0 && (
+          <div className="text-center mt-20">
+            <p className="text-gray-400 text-lg">
+              No events available
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

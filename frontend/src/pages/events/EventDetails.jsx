@@ -1,137 +1,160 @@
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-
-const events = [
-  {
-    id: 1,
-    title: "Stress Management Workshop",
-    date: "25 March 2026 | 4:00 PM",
-    location: "Main Hall",
-    price: "Free",
-    description:
-      "Learn how to manage stress effectively through guided techniques and expert sessions.",
-    image:
-      "https://images.unsplash.com/photo-1522202176988-66273c2fd55f",
-  },
-  {
-    id: 2,
-    title: "Mindfulness Session",
-    date: "30 March 2026 | 10:00 AM",
-    location: "Wellbeing Center",
-    price: "Free",
-    description:
-      "Relax your mind with meditation and mindfulness practices guided by professionals.",
-    image:
-      "https://images.unsplash.com/photo-1506126613408-eca07ce68773",
-  },
-  {
-    id: 3,
-    title: "Career Growth Seminar",
-    date: "5 April 2026 | 2:00 PM",
-    location: "Auditorium",
-    price: "Free",
-    description:
-      "Career guidance session to help students plan their future effectively.",
-    image:
-      "https://images.unsplash.com/photo-1551836022-d5d88e9218df",
-  },
-];
+import { motion } from "framer-motion";
 
 export default function EventDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const event = events.find((e) => e.id === Number(id));
+  const [event, setEvent] = useState(null);
 
-  if (!event) return <div className="p-10">Event not found</div>;
+  useEffect(() => {
+    fetch(`http://localhost:3000/api/events/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Event not found");
+        return res.json();
+      })
+      .then((data) => setEvent(data))
+      .catch((err) => console.error(err));
+  }, [id]);
+
+  if (!event) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-gray-100 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
 
-      {/* 🔥 BANNER (NOT FULL WIDTH) */}
+      {/* 🔥 HERO BANNER */}
       <div className="pt-6">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="relative rounded-xl overflow-hidden shadow-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative rounded-3xl overflow-hidden shadow-2xl"
+          >
             <img
-              src={event.image}
-              alt="event"
-              className="w-full h-[260px] object-cover"
+              src={
+                event.Image
+                  ? `http://localhost:3000/${event.Image}`
+                  : "https://via.placeholder.com/800x300"
+              }
+              className="w-full h-[300px] object-cover"
             />
-            <div className="absolute inset-0 bg-black/40"></div>
-          </div>
+
+            {/* GRADIENT OVERLAY */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
+
+            {/* TEXT */}
+            <div className="absolute bottom-6 left-6">
+              <h2 className="text-white text-3xl font-bold">
+                {event.Title}
+              </h2>
+              <p className="text-gray-200 text-sm mt-1">
+                Explore and grow your wellbeing
+              </p>
+            </div>
+          </motion.div>
         </div>
       </div>
 
       {/* 🔥 FLOATING CARD */}
       <div className="max-w-6xl mx-auto px-6">
-        <div className="bg-white rounded-xl shadow-md p-6 flex flex-col md:flex-row justify-between items-center -mt-12 relative z-10">
-
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-white/70 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-xl p-6 flex flex-col md:flex-row justify-between items-center -mt-16 relative z-10"
+        >
           {/* LEFT */}
           <div>
-            <h2 className="text-xl md:text-2xl font-bold">
-              {event.title}
+            <h2 className="text-2xl font-bold text-gray-800">
+              {event.Title}
             </h2>
 
             <p className="text-gray-500 text-sm mt-1">
-              Wellbeing Event | English | 2hrs
+              Wellbeing Event • 2hrs • Interactive
             </p>
 
-            <hr className="my-4" />
+            <div className="mt-4 space-y-1 text-sm text-gray-600">
+              <p>📅 {event.Date}</p>
+              <p>📍 {event.Location}</p>
+            </div>
 
-            <p className="text-gray-600 text-sm">📅 {event.date}</p>
-            <p className="text-gray-600 text-sm">📍 {event.location}</p>
-
-            <p className="text-orange-500 text-sm font-semibold mt-1">
-              Filling Fast
-            </p>
+            <div className="mt-2 text-blue-600 font-semibold text-sm">
+              Capacity: {event.Capacity}
+            </div>
           </div>
 
-          {/* RIGHT BUTTON */}
-          <button
-            onClick={() => navigate(`/register-event/${event.id}`)}
-            className="mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-lg font-semibold transition transform hover:scale-105 active:scale-95"
+          {/* 🔥 CTA BUTTON */}
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate(`/register-event/${event.ID}`)}
+            className="mt-4 md:mt-0 px-10 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg hover:shadow-xl transition"
           >
-            Book
-          </button>
-        </div>
+            Register Now →
+          </motion.button>
+        </motion.div>
       </div>
 
-      {/* 🔥 CONTENT SECTION */}
-      <div className="max-w-6xl mx-auto px-6 mt-10 grid md:grid-cols-3 gap-6">
+      {/* 🔥 CONTENT */}
+      <div className="max-w-6xl mx-auto px-6 mt-12 grid md:grid-cols-3 gap-8">
 
         {/* LEFT */}
         <div className="md:col-span-2 space-y-6">
 
           {/* ABOUT */}
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
-            <h3 className="font-semibold text-lg mb-2">About Event</h3>
-            <p className="text-gray-600">{event.description}</p>
-          </div>
+          <motion.div
+            whileHover={{ y: -5 }}
+            className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
+          >
+            <h3 className="font-semibold text-lg mb-3 text-gray-800">
+              About Event
+            </h3>
+            <p className="text-gray-600 leading-relaxed">
+              {event.Description || "No description available"}
+            </p>
+          </motion.div>
 
           {/* TERMS */}
-          <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
-            <h3 className="font-semibold text-lg mb-2">Terms & Conditions</h3>
-            <ul className="text-gray-600 text-sm list-disc pl-5 space-y-1">
+          <motion.div
+            whileHover={{ y: -5 }}
+            className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
+          >
+            <h3 className="font-semibold text-lg mb-3 text-gray-800">
+              Terms & Conditions
+            </h3>
+            <ul className="text-gray-600 text-sm list-disc pl-5 space-y-2">
               <li>No refunds after booking</li>
               <li>Arrive 15 minutes early</li>
               <li>Valid student ID required</li>
             </ul>
-          </div>
+          </motion.div>
         </div>
 
         {/* RIGHT */}
-        <div className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
-          <h3 className="font-semibold text-lg mb-3">Location</h3>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
+        >
+          <h3 className="font-semibold text-lg mb-3 text-gray-800">
+            Location
+          </h3>
 
           <p className="text-gray-600 text-sm mb-4">
-            {event.location}, University Campus
+            {event.Location}, University Campus
           </p>
 
           <iframe
             title="map"
             src="https://maps.google.com/maps?q=colombo&t=&z=13&ie=UTF8&iwloc=&output=embed"
-            className="w-full h-40 rounded-lg border"
+            className="w-full h-44 rounded-xl border"
           ></iframe>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import {
   FiGrid, FiUsers, FiCalendar, FiUserCheck, FiPlusSquare,
   FiUser, FiLogOut, FiMenu, FiX, FiActivity
 } from 'react-icons/fi';
+import EventManagement from "../../pages/admin/EventManagement";
 
 // import AdminOverview from '../../components/admin/AdminOverview';
 // import ManageBookings from '../../components/admin/ManageBookings';
@@ -73,6 +74,16 @@ const AdminDashboard = () => {
           ))}
         </nav> */}
 
+        <button
+          onClick={() => setActiveTab("EventManagement")}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-indigo-600 font-semibold text-sm"
+        >
+          <FiCalendar className="text-xl" />
+          {isSidebarOpen && <span>Event Management</span>}
+        </button>
+
+
+
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-slate-50">
           <button
@@ -123,6 +134,15 @@ const AdminDashboard = () => {
             {renderContent()}
           </div>
         </div> */}
+
+        <div className="flex-1 overflow-y-auto p-8 bg-[#f8fafc]">
+          {activeTab === "Overview" && (
+            <div>Overview content here</div>
+          )}
+
+          {activeTab === "EventManagement" && <EventManagement />}
+        </div>
+        
       </main>
     </div>
   );
