@@ -1,16 +1,18 @@
 import React, { useState } from "react";
 import {
-  FaUserCircle, FaCalendarPlus, FaClipboardList,
+  FaUserCircle, FaCalendarPlus, FaClipboardList, FaCalendar,
   FaStethoscope, FaChartLine, FaSignOutAlt, FaBell, FaSearch
 } from "react-icons/fa";
 // import OverviewTab from "../../components/counselor/OverviewTab";
-// import ProfileTab from "../../components/counselor/ProfileTab";
-// import AvailabilityTab from "../../components/counselor/AvailabilityTab";
-// import AppointmentsTab from "../../components/counselor/AppointmentsTab";
-// import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+import Calendar from "../../components/counselor/Calendar";
+import ProfileTab from "../../components/counselor/ProfileTab";
+import AvailabilityTab from "../../components/counselor/AvailabilityTab";
+import AppointmentsTab from "../../components/counselor/AppointmentsTab";
+import ManagePlansTab from "../../components/counselor/ManagePlansTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaChartLine /> },
+  { id: "calendar", label: "Calendar", icon: <FaCalendar /> },
   { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
   { id: "availability", label: "Manage Availability", icon: <FaCalendarPlus /> },
   { id: "appointments", label: "Student Appointments", icon: <FaClipboardList /> },
@@ -87,12 +89,20 @@ export default function CounselorDashboard() {
         </header>
 
         {/* TAB CONTENT */}
+        <div className="p-6 md:md:p-10 max-w-6xl w-full mx-auto">
+          {activeTab === "profile" && <ProfileTab />}
+          {activeTab === "appointments" && <AppointmentsTab />}
+          {activeTab === "calendar" && <Calendar />}
+          {activeTab === "availability" && <AvailabilityTab />}
+          {activeTab === "manage-plans" && <ManagePlansTab />}
+        </div>
+
+        
         {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
-          {activeTab === "profile" && <ProfileTab />}
-          {activeTab === "availability" && <AvailabilityTab />}
-          {activeTab === "appointments" && <AppointmentsTab />}
-          {activeTab === "manage-plans" && <ManagePlansTab />}
+          
+          
+          
         </div> */}
       </main>
     </div>

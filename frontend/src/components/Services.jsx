@@ -48,6 +48,14 @@ const services = [
     icon: FaHeartbeat,
     color: "bg-red-50 text-red-600",
   },
+
+  {
+  title: "Wellbeing Events",
+  description: "Explore upcoming wellbeing programs and register for university events.",
+  icon: FaUsers,
+  color: "bg-green-50 text-green-600",
+  path: "/events"
+},
 ];
 
 export default function Services() {
@@ -93,7 +101,13 @@ export default function Services() {
               </p>
               <div className="mt-6">
                 <button
-                  onClick={() => setSelectedService(service)}
+                  onClick={() => {
+                      if (service.path) {
+                        window.location.href = service.path;
+                      } else {
+                        setSelectedService(service);
+                      }
+                    }}
                   className="inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 duration-300"
                 >
                   Learn more <span className="ml-1">→</span>
