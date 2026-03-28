@@ -28,6 +28,12 @@ const TABS = [
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [user, setUser] = useState(null);
+  const [reportUnlocked, setReportUnlocked] = useState(false);
+
+  const handleViewReport = () => {
+    setReportUnlocked(true);
+    setActiveTab("reports");
+  };
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -97,8 +103,12 @@ export default function StudentDashboard() {
 
           {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "waitlist" && <MyWaitListTab />}
-          {activeTab === "treatment" && <TreatmentPlanTab />}
-          {activeTab === "reports" && <MyReportView />}
+          {activeTab === "treatment" && (
+            <TreatmentPlanTab onViewReport={handleViewReport} />
+          )}
+          {activeTab === "reports" && (
+            <MyReportView reportUnlocked={reportUnlocked} />
+          )}
 
           {activeTab === "overview" && <p>Overview coming soon...</p>}
           
