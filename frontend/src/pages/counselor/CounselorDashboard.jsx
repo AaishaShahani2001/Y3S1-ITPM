@@ -6,7 +6,7 @@ import {
 // import OverviewTab from "../../components/counselor/OverviewTab";
 import Calendar from "../../components/counselor/Calendar";
 // import ProfileTab from "../../components/counselor/ProfileTab";
-// import AvailabilityTab from "../../components/counselor/AvailabilityTab";
+import AvailabilityTab from "../../components/counselor/AvailabilityTab";
 import AppointmentsTab from "../../components/counselor/AppointmentsTab";
 import ManagePlansTab from "../../components/counselor/ManagePlansTab";
 
@@ -92,6 +92,7 @@ export default function CounselorDashboard() {
         <div className="p-6 md:md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "calendar" && <Calendar />}
+          {activeTab === "availability" && <AvailabilityTab />}
           {activeTab === "manage-plans" && <ManagePlansTab />}
         </div>
 
@@ -99,7 +100,7 @@ export default function CounselorDashboard() {
         {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "profile" && <ProfileTab />}
-          {activeTab === "availability" && <AvailabilityTab />}
+          
           
         </div> */}
       </main>
