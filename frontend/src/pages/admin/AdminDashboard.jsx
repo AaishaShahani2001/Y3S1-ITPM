@@ -31,11 +31,11 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans text-slate-900">
+    <div className="flex h-screen min-h-0 w-full bg-[#f8fafc] overflow-hidden font-sans text-slate-900">
       {/* Sidebar */}
       <aside
         className={`${isSidebarOpen ? 'w-72' : 'w-20'
-          } bg-white border-r border-slate-200 transition-all duration-300 ease-in-out flex flex-col z-30 shadow-sm relative`}
+          } shrink-0 bg-white border-r border-slate-200 transition-all duration-300 ease-in-out flex flex-col z-30 shadow-sm relative`}
       >
         {/* Sidebar Header */}
         <div className="h-20 flex items-center px-6 border-b border-slate-50">
@@ -92,7 +92,7 @@ const AdminDashboard = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 flex items-center justify-between z-20 sticky top-0">
           <div className="flex items-center gap-2">
