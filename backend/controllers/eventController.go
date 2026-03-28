@@ -175,7 +175,12 @@ func CreateEvent(c *gin.Context) {
 	if err == nil {
 		imagePath = "uploads/" + file.Filename
 		c.SaveUploadedFile(file, imagePath)
+
 	}
+
+	
+
+
 
 	event := models.Event{
 		Title:       title,
@@ -200,7 +205,32 @@ func GetEvents(c *gin.Context) {
 	var events []models.Event
 	initializers.DB.Find(&events)
 
-	c.JSON(http.StatusOK, events)
+	var result []gin.H
+
+	for _, e := range events {
+
+		var count int64
+
+		// ✅ count registrations
+		initializers.DB.
+			Model(&models.Registration{}).
+			Where("event_id = ?", e.ID).
+			Count(&count)
+
+		result = append(result, gin.H{
+			"ID":         e.ID,
+			"Title":      e.Title,
+			"Description": e.Description,
+			"Date":       e.Date,
+			"Time":       e.Time,
+			"Location":   e.Location,
+			"Capacity":   e.Capacity,
+			"Image":      e.Image,
+			"Registered": count, // 🔥 IMPORTANT
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // =======================
@@ -268,12 +298,33 @@ func GetEventByID(c *gin.Context) {
 	var event models.Event
 	initializers.DB.First(&event, id)
 
-	c.JSON(http.StatusOK, event)
+	if event.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+		return
+	}
+
+	var count int64
+
+	// ✅ count registrations
+	initializers.DB.
+		Model(&models.Registration{}).
+		Where("event_id = ?", event.ID).
+		Count(&count)
+
+	c.JSON(http.StatusOK, gin.H{
+		"ID":         event.ID,
+		"Title":      event.Title,
+		"Description": event.Description,
+		"Date":       event.Date,
+		"Time":       event.Time,
+		"Location":   event.Location,
+		"Capacity":   event.Capacity,
+		"Image":      event.Image,
+		"Registered": count, // 🔥 IMPORTANT
+	})
 }
 
-// =======================
-// GET STUDENT EVENTS
-// =======================
+
 // =======================
 // GET STUDENT EVENTS
 // =======================
