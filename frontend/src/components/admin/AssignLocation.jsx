@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { FiMapPin, FiEdit2, FiCheck, FiX, FiSearch } from 'react-icons/fi';
+import { FiMapPin, FiEdit2, FiSearch } from 'react-icons/fi';
+import { FaCheck, FaTimes } from 'react-icons/fa';
 import { toast } from "react-toastify";
 
 
@@ -211,7 +212,10 @@ const AssignLocation = () => {
       {/* ---------- Counselor cards (grid) ---------- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCounselors.map((counselor) => (
-          <div key={counselor.id} className="group bg-white rounded-xl border border-slate-200 p-5 hover:border-indigo-200 hover:shadow-md transition-all duration-200 relative overflow-hidden">
+          <div
+            key={counselor.id}
+            className="group relative min-w-0 overflow-visible rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
+          >
             {/* Status strip: unassigned vs assigned */}
             <div className={`absolute top-0 left-0 w-full h-1 ${counselor.currentLocation === NOT_ASSIGNED ? 'bg-amber-400' : 'bg-indigo-500'}`}></div>
             
@@ -238,12 +242,12 @@ const AssignLocation = () => {
               
               {editingId === counselor.id ? (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                     {/* Location select: buildings taken by others are disabled */}
                     <select 
                       value={selectedLocation}
                       onChange={(e) => setSelectedLocation(e.target.value)}
-                      className="flex-1 bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
+                      className="min-w-0 w-full flex-1 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 sm:min-h-11"
                     >
                       <option value={NOT_ASSIGNED}>{NOT_ASSIGNED}</option>
                       {BUILDING_LOCATIONS.map((loc) => {
@@ -264,21 +268,31 @@ const AssignLocation = () => {
                         );
                       })}
                     </select>
-                    <button 
-                      onClick={() => handleSaveLocation(counselor.id)}
-                      disabled={savingId === counselor.id}
-                      className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors"
-                      title="Save"
-                    >
-                      {savingId === counselor.id ? "..." : <FiCheck />}
-                    </button>
-                    <button 
-                      onClick={handleCancelEdit}
-                      className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg transition-colors"
-                      title="Cancel"
-                    >
-                      <FiX />
-                    </button>
+                    <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveLocation(counselor.id)}
+                        disabled={savingId === counselor.id}
+                        className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        title="Save"
+                        aria-label="Save location"
+                      >
+                        {savingId === counselor.id ? (
+                          <span className="text-sm font-black leading-none">…</span>
+                        ) : (
+                          <FaCheck className="h-4 w-4 shrink-0" aria-hidden />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-600 hover:text-white"
+                        title="Cancel"
+                        aria-label="Cancel editing"
+                      >
+                        <FaTimes className="h-4 w-4 shrink-0" aria-hidden />
+                      </button>
+                    </div>
                   </div>
                   {/* Optional note; max length enforced below */}
                   <div>
