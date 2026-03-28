@@ -26,11 +26,14 @@ const AdminDashboard = () => {
   };
 
   return (
-    // ❌ removed overflow-hidden
-    <div className="flex min-h-screen bg-[#f8fafc] font-sans text-slate-900">
+    <div className="flex h-screen min-h-0 w-full overflow-hidden bg-[#f8fafc] font-sans text-slate-900">
 
       {/* SIDEBAR */}
-      <aside className={`${isSidebarOpen ? 'w-72' : 'w-20'} bg-white border-r flex flex-col`}>
+      <aside
+        className={`relative shrink-0 border-r border-slate-200 bg-white shadow-sm transition-[width] duration-300 ease-in-out ${
+          isSidebarOpen ? 'w-72' : 'w-20'
+        } flex flex-col`}
+      >
         
         <div className="h-20 flex items-center px-6">
           <div className="flex items-center gap-3">
@@ -58,33 +61,39 @@ const AdminDashboard = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t">
-          <button className="flex gap-2 text-red-500">
-            <FiLogOut /> Logout
+        <div className="border-t border-slate-50 p-4">
+          <button
+            type="button"
+            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-rose-500 transition-colors hover:bg-rose-50 ${
+              !isSidebarOpen ? 'justify-center' : ''
+            }`}
+          >
+            <FiLogOut className="text-lg shrink-0" />
+            {isSidebarOpen && <span>Logout</span>}
           </button>
         </div>
 
         <button
+          type="button"
+          aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           onClick={() => setSidebarOpen(!isSidebarOpen)}
-          className="absolute -right-3 top-24 bg-white border rounded-full p-1"
+          className="absolute -right-3 top-24 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-indigo-200 hover:text-indigo-600"
         >
           {isSidebarOpen ? <FiX size={14} /> : <FiMenu size={14} />}
         </button>
       </aside>
 
       {/* MAIN */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* HEADER */}
-        <header className="h-20 bg-white flex items-center px-8 border-b">
-          <h1 className="font-bold text-lg">{activeTab}</h1>
+        <header className="flex h-20 shrink-0 items-center border-b border-slate-200 bg-white px-6 md:px-8">
+          <h1 className="text-lg font-bold text-slate-800">{activeTab}</h1>
         </header>
 
-        {/* ✅ THIS FIX ENABLES SCROLL */}
-        <div className="flex-1 overflow-y-auto p-8">
-          {renderContent()}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth p-6 md:p-8">
+          <div className="mx-auto w-full max-w-7xl pb-10">{renderContent()}</div>
         </div>
-
       </main>
     </div>
   );
