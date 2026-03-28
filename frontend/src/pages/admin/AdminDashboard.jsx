@@ -94,6 +94,7 @@ const AdminDashboard = () => {
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth p-6 md:p-8">
           <div className="mx-auto w-full max-w-7xl pb-10">{renderContent()}</div>
         </div>
+
       </main>
     </div>
   );
