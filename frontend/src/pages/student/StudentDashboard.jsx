@@ -9,13 +9,11 @@ import {
   FaSearch,
 } from "react-icons/fa";
 
-// ✅ YOUR FEATURE
 import MyEvents from "./MyEvents";
-
-// ✅ TEAM FEATURES
 import AppointmentsTab from "../../components/student/AppointmentsTab";
 import MyWaitListTab from "../../components/student/MyWaitListTab";
 import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
+import MyReportView from "../../components/student/MyReportView";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaThLarge /> },
@@ -24,7 +22,7 @@ const TABS = [
   { id: "treatment", label: "Treatment Plan", icon: <FaCalendarCheck /> },
   { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
   { id: "settings", label: "Settings", icon: <FaCog /> },
-  { id: "events", label: "My Events", icon: <FaCalendarCheck /> }, // ✅ YOUR FEATURE
+  { id: "events", label: "My Events", icon: <FaCalendarCheck /> },
 ];
 
 export default function StudentDashboard() {
@@ -100,9 +98,10 @@ export default function StudentDashboard() {
           {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "waitlist" && <MyWaitListTab />}
           {activeTab === "treatment" && <TreatmentPlanTab />}
+          {activeTab === "reports" && <MyReportView />}
 
           {activeTab === "overview" && <p>Overview coming soon...</p>}
-          {activeTab === "reports" && <p>Reports coming soon...</p>}
+          
           {activeTab === "settings" && <p>Settings coming soon...</p>}
 
         </div>
