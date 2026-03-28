@@ -31,19 +31,19 @@ const SCHEDULE_BY_DATE = {
     { time: "01:00 PM", isBooked: true },
     { time: "03:30 PM", isBooked: false },
   ],
-  "Mar 4, Wed": [
+  "April 8, Wed": [
     { time: "09:00 AM", isBooked: false },
     { time: "10:30 AM", isBooked: true },
     { time: "01:00 PM", isBooked: false },
     { time: "03:30 PM", isBooked: true },
   ],
-  "Mar 5, Thu": [
+  "April 9, Thu": [
     { time: "09:00 AM", isBooked: false },
     { time: "10:30 AM", isBooked: false },
     { time: "01:00 PM", isBooked: true },
     { time: "03:30 PM", isBooked: false },
   ],
-  "Mar 6, Fri": [
+  "April 10, Fri": [
     { time: "09:00 AM", isBooked: true },
     { time: "10:30 AM", isBooked: true },
     { time: "01:00 PM", isBooked: false },
