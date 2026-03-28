@@ -1,0 +1,15 @@
+.react-calendar {
+  border: none;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.react-calendar__tile {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.react-calendar__tile:hover {
+  background: #eff6ff;
+  border-radius: 10px;
+}
