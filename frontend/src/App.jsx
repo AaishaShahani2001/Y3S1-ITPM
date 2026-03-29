@@ -18,6 +18,8 @@ import CounselorDashboard from "./pages/counselor/CounselorDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
 
 import Counsellors from "./pages/Counsellors";
+import CounsellorDetails from "./pages/CounsellorDetails";
+
 import BookAppointment from "./pages/BookAppointment";
 
 
@@ -59,6 +61,8 @@ export default function App() {
 
           {/* Counselor Listing page */}
           <Route path="/counsellors" element={<Counsellors />} />
+          {/* Counselor Details page */}
+          <Route path="/counsellor/:id" element={<CounsellorDetails />} />
           
 
 
