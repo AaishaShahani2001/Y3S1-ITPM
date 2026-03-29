@@ -15,7 +15,7 @@ export default function Footer() {
         {/* BRAND / CONTACT */}
         <div>
           <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
-            🎓 <span className="text-blue-600">UniCare</span>
+            🎓 <span className="text-blue-600">MindBridge</span>
           </h3>
           <p className="text-sm leading-relaxed mb-6">
             Empowering university students with professional wellbeing support,
