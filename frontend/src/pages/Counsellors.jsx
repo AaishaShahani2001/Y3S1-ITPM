@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaSearch, FaUserTie, FaGraduationCap, FaMapMarkerAlt, FaBriefcase, FaStar } from "react-icons/fa";
 import BecomeCounsellorModal from "../components/BecomeCounsellorModal";
 import groupDoctors from "../assets/groupDoctors.jpg";
+import { DUMMY_COUNSELLORS } from "../data/dummyCounsellors";
 
 // Category filter options shown as chips.
 const CATEGORIES = [
@@ -12,76 +13,6 @@ const CATEGORIES = [
   "Personal Development",
   "Mental Health Specialist",
   "Emotional Regulation Expert"
-];
-
-// Frontend dummy counsellor records.
-const DUMMY_COUNSELLORS = [
-  {
-    id: "1",
-    name: "Dr. Nethmi Perera",
-    category: "Stress Management",
-    experience: 5,
-    workplace: "New Building F1301",
-    available: true,
-    rating: 4.9,
-    bio: "Specializes in stress recovery plans, burnout prevention, and practical coping strategies for students.",
-    image: "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200",
-  },
-  {
-    id: "2",
-    name: "Mr. Dilan Fernando",
-    category: "Academic Support",
-    experience: 3,
-    workplace: "Main Building A202",
-    available: true,
-    rating: 4.7,
-    bio: "Supports students with study structure, academic pressure, and exam confidence.",
-    image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200&h=200",
-  },
-  {
-    id: "3",
-    name: "Ms. Kavindi Silva",
-    category: "Career Guidance",
-    experience: 4,
-    workplace: "Wellness Center W101",
-    available: false,
-    rating: 4.8,
-    bio: "Guides students through career planning, CV building, and interview readiness.",
-    image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=200&h=200",
-  },
-  {
-    id: "4",
-    name: "Dr. Kamal Perera",
-    category: "Mental Health Specialist",
-    experience: 10,
-    workplace: "Medical Wing M10",
-    available: true,
-    rating: 5.0,
-    bio: "Experienced in anxiety, depression, and long-term therapeutic mental health support.",
-    image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=200&h=200",
-  },
-  {
-    id: "5",
-    name: "Ms. Aruni Jay",
-    category: "Emotional Regulation Expert",
-    experience: 6,
-    workplace: "Wellness Center W102",
-    available: true,
-    rating: 4.6,
-    bio: "Focuses on emotional control techniques, resilience building, and healthy communication patterns.",
-    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=200&h=200",
-  },
-  {
-    id: "6",
-    name: "Mr. Sahan Wijesinghe",
-    category: "Personal Development",
-    experience: 7,
-    workplace: "Student Hub H12",
-    available: false,
-    rating: 4.5,
-    bio: "Helps students with confidence building, goal setting, and self-growth routines.",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200",
-  },
 ];
 
 export default function Counsellors() {
