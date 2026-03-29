@@ -41,7 +41,7 @@ export default function Hero() {
         {/* RIGHT CONTENT - Actually Left in code structure vs visual, but sticking to 'grid' logic */}
         <div className="order-1 md:order-2">
           <span className="inline-block py-1 px-3 rounded-full bg-blue-100 text-blue-600 text-sm font-semibold mb-6">
-            Welcome to UniCare
+            Welcome to MindBridge
           </span>
           <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-6">
             Overcome Your <br />
