@@ -24,6 +24,9 @@ const COUNSELLORS = [
   { id: "5", name: "Ms. Aruni Jay", category: "Emotional Regulation Expert", experience: 6, rating: 4.7, image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=300&h=300", workplace: "Wellness Center W102" },
 ];
 
+/** Must match keys in SCHEDULE_BY_DATE */
+const BOOKING_DATE_OPTIONS = ["Tomorrow", "April 8, Wed", "April 9, Thu", "April 10, Fri"];
+
 const SCHEDULE_BY_DATE = {
   Tomorrow: [
     { time: "09:00 AM", isBooked: true },
@@ -68,6 +71,8 @@ export default function BookAppointment() {
   const [selectedCounsellorId, setSelectedCounsellorId] = useState(id || "");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
+  /** True when the chosen time came from "Join Waitlist" on a booked slot (user can still finish booking). */
+  const [scheduleViaWaitlist, setScheduleViaWaitlist] = useState(false);
   const [waitlistEntries, setWaitlistEntries] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -122,16 +127,24 @@ export default function BookAppointment() {
 
     if (currentStep === 4) {
       if (!selectedDate) nextErrors.selectedDate = "Please select a date.";
-      if (!selectedSlot) nextErrors.selectedSlot = "Please select a time slot.";
+      if (!selectedSlot) {
+        nextErrors.selectedSlot =
+          "Select an available slot, or join the waitlist on a booked slot to continue.";
+      }
     }
 
     if (currentStep === 5) {
       if (!formData.age) {
         nextErrors.age = "Age is required.";
       } else {
-        const ageNumber = Number(formData.age);
-        if (Number.isNaN(ageNumber) || ageNumber < 1 || ageNumber > 120) {
-          nextErrors.age = "Age must be between 1 and 120.";
+        const ageStr = String(formData.age).trim();
+        if (!/^\d{1,2}$/.test(ageStr)) {
+          nextErrors.age = "Enter age as 1 or 2 digits only.";
+        } else {
+          const ageNumber = Number(ageStr);
+          if (Number.isNaN(ageNumber) || ageNumber < 1 || ageNumber > 60) {
+            nextErrors.age = "Age must be between 1 and 60.";
+          }
         }
       }
 
@@ -196,7 +209,12 @@ export default function BookAppointment() {
       ...prev,
       { counsellorId, date: selectedDate, slot: slotTime },
     ]);
-    toast.success(`Joined waitlist for ${selectedDate} at ${slotTime}.`);
+    setSelectedSlot(slotTime);
+    setScheduleViaWaitlist(true);
+    setErrors((prev) => ({ ...prev, selectedSlot: "" }));
+    toast.success(
+      `Joined waitlist for ${selectedDate} at ${slotTime}. You can continue to complete your booking.`
+    );
   };
 
   const handleSubmit = (e) => {
@@ -282,7 +300,12 @@ export default function BookAppointment() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time</p>
-                  <p className="font-bold text-sm text-slate-900">{selectedSlot}</p>
+                  <p className="font-bold text-sm text-slate-900">
+                    {selectedSlot}
+                    {scheduleViaWaitlist ? (
+                      <span className="ml-1 text-[10px] font-black uppercase text-amber-700"> (Waitlist)</span>
+                    ) : null}
+                  </p>
                 </div>
               </div>
 
@@ -488,12 +511,13 @@ export default function BookAppointment() {
                         <FaCalendarAlt className="text-blue-600" /> Select Date
                       </h4>
                       <div className="grid grid-cols-2 gap-2">
-                        {["Tomorrow", "Mar 4, Wed", "Mar 5, Thu", "Mar 6, Fri"].map(date => (
+                        {BOOKING_DATE_OPTIONS.map(date => (
                           <button
                             key={date}
                             onClick={() => {
                               setSelectedDate(date);
                               setSelectedSlot("");
+                              setScheduleViaWaitlist(false);
                               setErrors((prev) => ({ ...prev, selectedDate: "", selectedSlot: "" }));
                             }}
                             className={`p-3 text-xs rounded-xl border-2 font-bold transition-all ${selectedDate === date
@@ -525,6 +549,7 @@ export default function BookAppointment() {
                                 onClick={() => {
                                   if (slotItem.isBooked) return;
                                   setSelectedSlot(slot);
+                                  setScheduleViaWaitlist(false);
                                   setErrors((prev) => ({ ...prev, selectedSlot: "" }));
                                 }}
                                 className={`w-full p-3 text-xs rounded-xl border-2 font-bold transition-all ${
@@ -567,6 +592,15 @@ export default function BookAppointment() {
                     </p>
                   )}
 
+                  {scheduleViaWaitlist && selectedDate && selectedSlot && (
+                    <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900">
+                      <span className="font-black uppercase tracking-widest text-amber-700">Waitlist</span>
+                      <p className="mt-1 leading-relaxed">
+                        You joined the waitlist for this time. Continue below to finish your appointment details—your slot will be confirmed if it opens.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="mt-8 p-6 bg-slate-900 rounded-2xl flex items-center justify-between text-white">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-blue-400">
@@ -580,7 +614,12 @@ export default function BookAppointment() {
                     {selectedDate && selectedSlot && (
                       <div className="text-right">
                         <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Selected</p>
-                        <p className="font-bold text-sm">{selectedDate} @ {selectedSlot}</p>
+                        <p className="font-bold text-sm">
+                          {selectedDate} @ {selectedSlot}
+                          {scheduleViaWaitlist ? (
+                            <span className="block text-[10px] font-black uppercase text-amber-300">Waitlist</span>
+                          ) : null}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -616,26 +655,51 @@ export default function BookAppointment() {
                         </div>
                         <div className="ml-auto text-right">
                           <p className="text-sm font-black text-blue-600">{selectedDate}</p>
-                          <p className="text-[10px] font-bold text-slate-400">{selectedSlot}</p>
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {selectedSlot}
+                            {scheduleViaWaitlist ? (
+                              <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-800">
+                                Waitlist
+                              </span>
+                            ) : null}
+                          </p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Age</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Age (1–60)</label>
                           <input
-                            type="number"
-                            min="1"
-                            max="120"
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={2}
+                            autoComplete="off"
                             value={formData.age}
                             onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === "") {
+                              let digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                              if (digits === "") {
                                 setFormData({ ...formData, age: "" });
                                 return;
                               }
-                              const onlyDigits = val.replace(/\D/g, "");
-                              setFormData({ ...formData, age: onlyDigits });
+                              // No leading zeros (ages are 1–60)
+                              if (digits.startsWith("0")) {
+                                digits = digits.replace(/^0+/, "") || "";
+                                if (digits === "") {
+                                  setFormData({ ...formData, age: "" });
+                                  return;
+                                }
+                              }
+                              const n = Number(digits);
+                              if (digits.length === 1 && n === 0) {
+                                setFormData({ ...formData, age: "" });
+                                return;
+                              }
+                              // Two digits: never allow > 60 (e.g. 99 → 60, 61 → 60)
+                              if (digits.length === 2 && n > 60) {
+                                setFormData({ ...formData, age: "60" });
+                                return;
+                              }
+                              setFormData({ ...formData, age: digits });
                             }}
                             placeholder="e.g. 21"
                             className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 text-xs focus:border-blue-100 transition-all outline-none"
