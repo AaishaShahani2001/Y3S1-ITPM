@@ -62,7 +62,7 @@ export default function Services() {
   const [selectedService, setSelectedService] = useState(null);
 
   return (
-    <section className="bg-white py-20 relative overflow-hidden">
+    <section className="bg-transparent py-20 relative overflow-hidden">
       {/* Decorative background elements */}
       <div className="absolute top-0 left-0 w-64 h-64 bg-blue-50 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-50 rounded-full mix-blend-multiply filter blur-3xl opacity-30 translate-x-1/2 translate-y-1/2 pointer-events-none"></div>
@@ -74,8 +74,8 @@ export default function Services() {
           <span className="bg-blue-100 text-blue-600 py-1 px-3 rounded-full text-xs font-bold uppercase tracking-wider mb-3 inline-block">
             Our Services
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-6">
-            Supporting Your <span className="text-blue-600">Wellbeing Journey</span>
+          <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6">
+            Supporting Your <span className="text-gradient">Wellbeing Journey</span>
           </h2>
           <p className="mt-4 text-slate-600 text-lg leading-relaxed">
             We provide a comprehensive range of professional counselling and wellbeing services
@@ -88,8 +88,10 @@ export default function Services() {
           {services.map((service, index) => (
             <div
               key={index}
-              className="group bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:-translate-y-2"
+              className={`group bg-white/60 backdrop-blur-2xl rounded-[2.5rem] p-10 shadow-xl transition-all duration-500 border border-white/40 hover:border-blue-300 hover:-translate-y-4 hover:shadow-[0_20px_50px_rgba(37,99,235,0.1)] relative overflow-hidden`}
             >
+              {/* Contextual Glow Background */}
+              <div className={`absolute -right-10 -top-10 w-32 h-32 ${service.color.split(' ')[0]} opacity-0 group-hover:opacity-20 blur-3xl transition-opacity duration-500 rounded-full`} />
               <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-3xl mb-6 ${service.color} group-hover:scale-110 transition-transform duration-300`}>
                 <service.icon />
               </div>
