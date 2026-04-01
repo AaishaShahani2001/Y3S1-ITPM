@@ -4,10 +4,10 @@ import CTA from "./CTA";
 
 export default function Footer() {
   return (
-    <footer className="bg-[#f6fbff] pt-32 relative overflow-hidden">
+    <footer className="bg-transparent pt-32 relative overflow-hidden">
 
       {/* Decorative Background for Footer Bottom */}
-      <div className="absolute bottom-0 w-full h-1/2 bg-white -z-10" />
+      <div className="absolute bottom-0 w-full h-1/2 bg-white/20 -z-10" />
 
       {/* MAIN FOOTER CONTENT */}
       <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 text-slate-600 mt-10">
@@ -80,7 +80,7 @@ export default function Footer() {
       </div>
 
       {/* BOTTOM BAR */}
-      <div className="bg-slate-50 border-t border-slate-100 py-6 text-center text-sm text-slate-500">
+      <div className="bg-white/40 backdrop-blur-md border-t border-slate-100 py-6 text-center text-sm text-slate-500">
         <p>© {new Date().getFullYear()} UniCare. All rights reserved.</p>
       </div>
     </footer>
