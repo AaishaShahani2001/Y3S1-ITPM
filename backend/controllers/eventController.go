@@ -35,7 +35,7 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// ✅ GET USER ID
+	// GET USER ID
 	userIDValue, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -56,7 +56,7 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// 🔥 CHECK DUPLICATE
+	// CHECK DUPLICATE
 	var existing models.Registration
 
 	err := initializers.DB.
@@ -70,19 +70,38 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// ✅ CREATE REGISTRATION
-	reg := models.Registration{
-		UserID:     userID,
-		EventID:    uint(input.EventID),
-		Name:       input.Name,
-		Email:      input.Email,
-		Phone:      input.Phone,
-		University: input.University,
-		Faculty:    input.Faculty,
-		Level:      input.Level,
-		Degree:     input.Degree,
-		Gender:     input.Gender,
-	}
+
+// GET EVENT
+var event models.Event
+initializers.DB.First(&event, input.EventID)
+
+// COUNT CONFIRMED ONLY
+var confirmedCount int64
+initializers.DB.
+	Model(&models.Registration{}).
+	Where("event_id = ? AND status = ?", input.EventID, "confirmed").
+	Count(&confirmedCount)
+
+// DECIDE STATUS
+status := "confirmed"
+if int(confirmedCount) >= event.Capacity {
+	status = "waitlist"
+}
+
+// ✅ CREATE REGISTRATION
+reg := models.Registration{
+	UserID:     userID,
+	EventID:    uint(input.EventID),
+	Name:       input.Name,
+	Email:      input.Email,
+	Phone:      input.Phone,
+	University: input.University,
+	Faculty:    input.Faculty,
+	Level:      input.Level,
+	Degree:     input.Degree,
+	Gender:     input.Gender,
+	Status:     status, 
+}
 
 	result := initializers.DB.Create(&reg)
 
@@ -136,19 +155,29 @@ func GetEventAnalytics(c *gin.Context) {
 
 	total := len(registrations)
 
+	confirmed := 0
+	waitlist := 0
 	male := 0
 	female := 0
 
 	for _, r := range registrations {
-		if r.Gender == "Male" {
-			male++
-		} else if r.Gender == "Female" {
-			female++
+
+		if r.Status == "confirmed" {
+			confirmed++
+
+			if r.Gender == "Male" {
+				male++
+			} else if r.Gender == "Female" {
+				female++
+			}
+		} else {
+			waitlist++
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"total":  total,
+		"waitlist": waitlist,
 		"male":   male,
 		"female": female,
 		"data":   registrations,
@@ -226,7 +255,7 @@ func GetEvents(c *gin.Context) {
 			"Location":   e.Location,
 			"Capacity":   e.Capacity,
 			"Image":      e.Image,
-			"Registered": count, // 🔥 IMPORTANT
+			"Registered": count, 
 		})
 	}
 
@@ -234,7 +263,7 @@ func GetEvents(c *gin.Context) {
 }
 
 // =======================
-// DELETE EVENT (🔥 FINAL FIX)
+// DELETE EVENT 
 // =======================
 func DeleteEvent(c *gin.Context) {
 	idParam := c.Param("id")
@@ -320,7 +349,7 @@ func GetEventByID(c *gin.Context) {
 		"Location":   event.Location,
 		"Capacity":   event.Capacity,
 		"Image":      event.Image,
-		"Registered": count, // 🔥 IMPORTANT
+		"Registered": count, 
 	})
 }
 
@@ -350,7 +379,7 @@ func GetStudentEvents(c *gin.Context) {
 		return
 	}
 
-	// 🔥 IMPORTANT: BUILD CUSTOM RESPONSE
+	// BUILD CUSTOM RESPONSE
 	var response []gin.H
 
 	for _, r := range registrations {
@@ -360,6 +389,7 @@ func GetStudentEvents(c *gin.Context) {
 			"date": r.Event.Date,
 			"location": r.Event.Location,
 			"image": r.Event.Image,
+			"status": r.Status,
 		})
 	}
 
@@ -376,7 +406,6 @@ func DeleteRegistration(c *gin.Context) {
 
 	var reg models.Registration
 
-	// ✅ ensure user owns this registration
 	err := initializers.DB.
 		Where("id = ? AND user_id = ?", id, userID).
 		First(&reg).Error
@@ -386,7 +415,23 @@ func DeleteRegistration(c *gin.Context) {
 		return
 	}
 
+	eventID := reg.EventID
+
+	// ❌ DELETE CURRENT
 	initializers.DB.Delete(&reg)
 
-	c.JSON(200, gin.H{"message": "Deleted successfully"})
+	//FIND FIRST WAITLIST
+	var waitlist models.Registration
+	err = initializers.DB.
+		Where("event_id = ? AND status = ?", eventID, "waitlist").
+		Order("created_at ASC").
+		First(&waitlist).Error
+
+	if err == nil {
+		// PROMOTE
+		waitlist.Status = "confirmed"
+		initializers.DB.Save(&waitlist)
+	}
+
+	c.JSON(200, gin.H{"message": "Deleted and waitlist updated"})
 }

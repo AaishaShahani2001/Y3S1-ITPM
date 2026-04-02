@@ -26,6 +26,9 @@ export default function EventDetails() {
     );
   }
 
+  //CHECK IF EVENT FULL
+  const isFull = event.Registered >= event.Capacity;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">
 
@@ -97,16 +100,27 @@ export default function EventDetails() {
             <div className="mt-2 text-indigo-600 font-semibold text-sm">
               Capacity: {event.Capacity}
             </div>
+
+            {/*FULL WARNING */}
+            {isFull && (
+              <p className="text-red-500 text-sm mt-2">
+                ⚠️ Event full — you will be added to waitlist
+              </p>
+            )}
           </div>
 
-          {/* CTA */}
+          {/* CTA BUTTON */}
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/register-event/${event.ID}`)}
-            className="mt-5 md:mt-0 px-10 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition"
+            className={`mt-5 md:mt-0 px-10 py-3 rounded-xl text-white font-semibold shadow-lg transition
+              ${isFull
+                ? "bg-gray-500 hover:bg-gray-600"
+                : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-xl"}
+            `}
           >
-            Register Now →
+            {isFull ? "Join Waitlist →" : "Register Now →"}
           </motion.button>
         </motion.div>
       </div>
