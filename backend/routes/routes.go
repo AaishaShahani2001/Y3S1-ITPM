@@ -7,4 +7,5 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	AuthRoutes(r)
 	CounsellorRoutes(r)
+	AdminRoutes(r)
 }
