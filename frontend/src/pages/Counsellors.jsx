@@ -24,7 +24,7 @@ export default function Counsellors() {
   useEffect(() => {
     const fetchCounsellors = async () => {
       try {
-        const res = await fetch("http://localhost:8080/api/counsellor/all");
+        const res = await fetch("http://localhost:3000/api/counsellor/all");
         if (res.ok) {
           const data = await res.json();
           const mapped = data.map(c => ({

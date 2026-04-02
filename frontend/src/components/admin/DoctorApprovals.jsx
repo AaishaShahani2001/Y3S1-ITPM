@@ -18,7 +18,7 @@ const DoctorApprovals = () => {
     // ===============================
     const loadApplications = async () => {
         try {
-            const res = await fetch("http://localhost:8080/api/admin/applications", {
+            const res = await fetch("http://localhost:3000/api/admin/applications", {
                 headers: {
                     Authorization: `Bearer ${user.token}`,
                 },
@@ -43,9 +43,8 @@ const DoctorApprovals = () => {
     // APPROVE DOCTOR
     // ===============================
     const approve = async (id) => {
-
         try {
-            await fetch(`http://localhost:8080/api/admin/applications/${id}/approve`, {
+            await fetch(`http://localhost:3000/api/admin/applications/${id}/approve`, {
                 method: "PUT",
                 headers: {
                     Authorization: `Bearer ${user.token}`,
@@ -72,7 +71,7 @@ const DoctorApprovals = () => {
     const reject = async (id) => {
 
         try {
-            await fetch(`http://localhost:8080/api/admin/applications/${id}/reject`, {
+            await fetch(`http://localhost:3000/api/admin/applications/${id}/reject`, {
                 method: "PUT",
                 headers: {
                     Authorization: `Bearer ${user.token}`,

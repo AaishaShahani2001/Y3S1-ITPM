@@ -10,7 +10,7 @@ export default function CounsellorDetails() {
   useEffect(() => {
     const fetchCounsellor = async () => {
       try {
-        const res = await fetch("http://localhost:8080/api/counsellor/all");
+        const res = await fetch("http://localhost:3000/api/counsellor/all");
         if (res.ok) {
           const data = await res.json();
           const found = data.find(c => c.id.toString() === id);
@@ -26,7 +26,7 @@ export default function CounsellorDetails() {
               education: found.qualification || "Information Not Available",
               specialties: [found.specialization], // Fallback if no detailed specialties array exists
               image: found.profileImage
-                ? `http://localhost:8080/${found.profileImage}`
+                ? `http://localhost:3000/${found.profileImage}`
                 : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300", 
               rating: 4.8,
               reviews: 124,
@@ -195,7 +195,7 @@ export default function CounsellorDetails() {
                 <div className="flex items-center gap-3 text-slate-300 bg-white/5 p-3.5 rounded-xl border border-white/5">
                   <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-blue-400">
                     <FaClock className="text-sm" />
-                  </div>
+                  </div>8080
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Wait Time</p>
                     <p className="text-xs font-bold">Less than 24h</p>
