@@ -165,9 +165,10 @@ func GetEventAnalytics(c *gin.Context) {
 		if r.Status == "confirmed" {
 			confirmed++
 
-			if r.Gender == "Male" {
+			switch r.Gender {
+			case "Male":
 				male++
-			} else if r.Gender == "Female" {
+			case "Female":
 				female++
 			}
 		} else {
