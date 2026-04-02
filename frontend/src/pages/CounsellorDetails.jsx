@@ -1,75 +1,72 @@
-import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { FaArrowLeft, FaBriefcase, FaGraduationCap, FaEnvelope, FaMapMarkerAlt, FaStar, FaAward, FaUserCheck, FaClock, FaTimes, FaInfoCircle } from "react-icons/fa";
-import { DUMMY_COUNSELLORS } from "../data/dummyCounsellors";
+import { FaArrowLeft, FaBriefcase, FaGraduationCap, FaEnvelope, FaMapMarkerAlt, FaStar, FaAward, FaUserCheck, FaClock } from "react-icons/fa";
+import { useState, useEffect } from "react";
 
 export default function CounsellorDetails() {
   const { id } = useParams();
-  const [showBookInfoModal, setShowBookInfoModal] = useState(false);
+  const [counsellor, setCounsellor] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!showBookInfoModal) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
+    const fetchCounsellor = async () => {
+      try {
+        const res = await fetch("http://localhost:8080/api/counsellor/all");
+        if (res.ok) {
+          const data = await res.json();
+          const found = data.find(c => c.id.toString() === id);
+
+          if (found) {
+            setCounsellor({
+              id: found.id.toString(),
+              name: found.fullName,
+              category: found.specialization,
+              experience: found.experience,
+              workplace: found.workplace,
+              bio: found.about || "I am a dedicated professional with extensive experience in providing mental health support tailored to the unique challenges of university life. My approach is compassionate, evidence-based, and focused on empowering students to achieve their full potential.",
+              education: found.qualification || "Information Not Available",
+              specialties: [found.specialization], // Fallback if no detailed specialties array exists
+              image: found.profileImage
+                ? `http://localhost:8080/${found.profileImage}`
+                : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300", 
+              rating: 4.8,
+              reviews: 124,
+              languages: ["English", "Sinhala"],
+              available: true, // Always available for booking purposes
+              availableText: "Available",
+              nextAvailable: "Tomorrow, 10:00 AM",
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch counsellor details", err);
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [showBookInfoModal]);
-
-  const counsellor = useMemo(() => {
-    const listRow = DUMMY_COUNSELLORS.find((c) => String(c.id) === String(id));
-    const imgLarge = listRow?.image
-      ? listRow.image.replace("w=200&h=200", "w=300&h=300")
-      : undefined;
-
-    const available = listRow ? listRow.available : true;
-
-    return {
-      id,
-      name:
-        listRow?.name ??
-        (id === "1"
-          ? "Dr. Nethmi Perera"
-          : id === "2"
-            ? "Mr. Dilan Fernando"
-            : "Ms. Kavindi Silva"),
-      category:
-        listRow?.category ??
-        (id === "1" ? "Stress Management" : id === "2" ? "Academic Support" : "Career Guidance"),
-      experience: listRow?.experience ?? (id === "1" ? 5 : id === "2" ? 3 : 4),
-      workplace:
-        listRow?.workplace ??
-        (id === "1" ? "New Building F1301" : id === "2" ? "Main Building A202" : "Wellness Center W101"),
-      bio:
-        listRow?.bio ??
-        "I am a dedicated professional with extensive experience in providing mental health support tailored to the unique challenges of university life. My approach is compassionate, evidence-based, and focused on empowering students to achieve their full potential.",
-      education: "Ph.D. in Clinical Psychology, University of Colombo",
-      specialties: [
-        "Anxiety & Depression",
-        "Academic Pressure",
-        "Relationship Issues",
-        "Self-Esteem Building",
-        "Crisis Intervention",
-        "Cognitive Behavioral Therapy",
-      ],
-      image:
-        imgLarge ??
-        (id === "1"
-          ? "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300"
-          : id === "2"
-            ? "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300&h=300"
-            : "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=300&h=300"),
-      rating: listRow?.rating ?? 4.9,
-      reviews: 124,
-      languages: ["English", "Sinhala"],
-      available,
-      availableText: available ? "Available" : "Fully Booked",
-      nextAvailable: "Tomorrow, 10:00 AM",
-    };
+    fetchCounsellor();
   }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex justify-center items-center">
+        <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!counsellor) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center text-center px-4">
+        <h2 className="text-2xl font-black text-slate-900 mb-2">Counsellor Not Found</h2>
+        <p className="text-slate-500 mb-6 font-medium">The specialist you are looking for does not exist or has been removed.</p>
+        <Link to="/counsellors" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Back to Directory</Link>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 pb-16">
-      {/* HEADER SECTION */}
+      {/* HEADER SECTION - PREMIUM GRADIENT */}
       <div className="bg-linear-to-br from-blue-700 via-blue-600 to-indigo-700 pt-8 pb-24 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[60%] bg-white rounded-full blur-3xl animate-pulse" />
@@ -206,26 +203,13 @@ export default function CounsellorDetails() {
                 </div>
               </div>
 
-              <div className="mb-4">
-                <button
-                  type="button"
-                  disabled={!counsellor.available}
-                  onClick={() => counsellor.available && setShowBookInfoModal(true)}
-                  className={`w-full py-4 rounded-2xl font-black text-center text-sm uppercase tracking-widest transition-all ${
-                    counsellor.available
-                      ? "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 active:scale-[0.98]"
-                      : "cursor-not-allowed bg-slate-800 text-slate-500 border border-slate-700 opacity-90"
-                  }`}
-                  aria-disabled={!counsellor.available}
-                >
-                  Book Appointment
-                </button>
-                {!counsellor.available && (
-                  <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-widest text-red-400/90">
-                    Fully booked — try again later
-                  </p>
-                )}
-              </div>
+              {/* ALWAYS enabled booking button */}
+              <Link
+                to={`/book-appointment/${id}`}
+                className="block w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-center text-sm uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] mb-4"
+              >
+                Book Appointment
+              </Link>
 
               <button className="w-full py-3 bg-white/5 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all border border-white/10">
                 Contact Office
@@ -239,56 +223,6 @@ export default function CounsellorDetails() {
 
         </div>
       </div>
-
-      {showBookInfoModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md px-4 py-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="book-info-title"
-          onClick={() => setShowBookInfoModal(false)}
-        >
-          <div
-            className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setShowBookInfoModal(false)}
-              className="absolute right-4 top-4 rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Close"
-            >
-              <FaTimes className="text-lg" />
-            </button>
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-              <FaInfoCircle className="text-xl" />
-            </div>
-            <h2 id="book-info-title" className="pr-10 text-xl font-black tracking-tight text-slate-900">
-              Book through Services
-            </h2>
-            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
-              To make an appointment, go to <span className="font-bold text-slate-800">Services</span> in the main menu, open{" "}
-              <span className="font-bold text-slate-800">Counselling Booking</span>, and share how you are feeling. That flow matches you with support and completes your booking.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowBookInfoModal(false)}
-                className="rounded-2xl border border-slate-200 px-5 py-3 text-xs font-bold uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                Got it
-              </button>
-              <Link
-                to="/book-appointment"
-                onClick={() => setShowBookInfoModal(false)}
-                className="rounded-2xl bg-blue-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-700"
-              >
-                Go to booking
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
