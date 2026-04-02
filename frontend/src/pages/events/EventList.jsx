@@ -161,19 +161,24 @@ export default function EventList() {
                     </span>
                   </div>
 
-                  {/* BUTTON */}
+                 {/* BUTTON */}
                   <div className="pt-3">
-                    <motion.button
-                      whileTap={{ scale: isFull ? 1 : 0.95 }}
-                      disabled={isFull}
-                      className={`w-full py-2 rounded-xl text-sm font-medium shadow transition ${
-                        isFull
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg"
-                      }`}
-                    >
-                      {isFull ? "Event Full" : "View Details →"}
-                    </motion.button>
+                    {isFull ? (
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => navigate(`/events/${event.ID}?waitlist=true`)}
+                        className="w-full py-2 rounded-xl text-sm font-medium shadow bg-yellow-500 text-white hover:bg-yellow-600 transition"
+                      >
+                        Join Waitlist
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        className="w-full py-2 rounded-xl text-sm font-medium shadow bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg"
+                      >
+                        View Details →
+                      </motion.button>
+                    )}
                   </div>
                 </div>
               </motion.div>
