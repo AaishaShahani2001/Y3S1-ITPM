@@ -122,7 +122,7 @@ export default function BecomeCounsellorModal({ onClose }) {
       });
       
       // Send request to backend API
-      const res = await fetch("http://localhost:8080/api/counsellor/apply", {
+      const res = await fetch("http://localhost:3000/api/counsellor/apply", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${user.token}`,
