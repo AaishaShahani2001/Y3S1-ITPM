@@ -1,91 +1,105 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaEye, FaTimes } from 'react-icons/fa';
 
 const DoctorApprovals = () => {
-    // Frontend-only dummy data for approval requests.
-    const [requests, setRequests] = useState([
-        {
-            id: "REQ-001",
-            fullName: "Dr. Nethmi Perera",
-            specialization: "Stress Management",
-            experience: 5,
-            createdAt: "2026-03-20T10:15:00.000Z",
-            status: "pending",
-            email: "nethmi.perera@example.com",
-            phone: "0771234567",
-            registrationId: "SLMC-12345",
-            workplace: "University Wellness Center",
-            qualification: "MBBS, MSc Psychology",
-            about: "Experienced in student stress, burnout, and resilience coaching.",
-            nicFile: "#",
-            certificateFile: "#",
-        },
-        {
-            id: "REQ-002",
-            fullName: "Dr. Kavindu Silva",
-            specialization: "Career Guidance",
-            experience: 7,
-            createdAt: "2026-03-21T08:30:00.000Z",
-            status: "approved",
-            email: "kavindu.silva@example.com",
-            phone: "0717654321",
-            registrationId: "SLMC-67890",
-            workplace: "Career Development Unit",
-            qualification: "PhD Counseling Psychology",
-            about: "Supports undergraduates in career transitions and workplace readiness.",
-            nicFile: "#",
-            certificateFile: "#",
-        },
-        {
-            id: "REQ-003",
-            fullName: "Dr. Ishara Fernando",
-            specialization: "Academic Support",
-            experience: 4,
-            createdAt: "2026-03-22T13:45:00.000Z",
-            status: "rejected",
-            email: "ishara.fernando@example.com",
-            phone: "0769988776",
-            registrationId: "SLMC-44556",
-            workplace: "Learning Support Center",
-            qualification: "MBBS",
-            about: "",
-            nicFile: "",
-            certificateFile: "",
-        },
-    ]);
 
-    // View-details modal state.
+    // Store applications from backend
+    const [requests, setRequests] = useState([]);
+
+    // View Details Modal State
     const [selectedDoctor, setSelectedDoctor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Mark a request as approved in local state (frontend simulation).
-    const approve = (id) => {
-        setRequests((prev) =>
-            prev.map((req) => (req.id === id ? { ...req, status: "approved" } : req))
-        );
-        if (selectedDoctor && selectedDoctor.id === id) {
-            setSelectedDoctor((prev) => ({ ...prev, status: "approved" }));
+    // Get logged user from localStorage
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    // ===============================
+    // LOAD COUNSELLOR APPLICATIONS
+    // ===============================
+    const loadApplications = async () => {
+        try {
+            const res = await fetch("http://localhost:8080/api/admin/applications", {
+                headers: {
+                    Authorization: `Bearer ${user.token}`,
+                },
+            });
+
+            const data = await res.json();
+
+            setRequests(data);
+
+        } catch (error) {
+            console.error("Failed to load applications", error);
+        }
+    };
+
+    // Load when page opens
+    useEffect(() => {
+        loadApplications();
+    }, []);
+
+
+    // ===============================
+    // APPROVE DOCTOR
+    // ===============================
+    const approve = async (id) => {
+
+        try {
+            await fetch(`http://localhost:8080/api/admin/applications/${id}/approve`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${user.token}`,
+                },
+            });
+
+            // reload data
+            loadApplications();
+
+            // if modal is open for this doctor, close it or update it
+            if (selectedDoctor && selectedDoctor.id === id) {
+                setIsModalOpen(false);
+            }
+
+        } catch (error) {
+            console.error("Approve failed", error);
         }
     };
 
 
-    // Mark a request as rejected in local state (frontend simulation).
-    const reject = (id) => {
-        setRequests((prev) =>
-            prev.map((req) => (req.id === id ? { ...req, status: "rejected" } : req))
-        );
-        if (selectedDoctor && selectedDoctor.id === id) {
-            setSelectedDoctor((prev) => ({ ...prev, status: "rejected" }));
+    // ===============================
+    // REJECT DOCTOR
+    // ===============================
+    const reject = async (id) => {
+
+        try {
+            await fetch(`http://localhost:8080/api/admin/applications/${id}/reject`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${user.token}`,
+                },
+            });
+
+            // reload data
+            loadApplications();
+
+            // if modal is open for this doctor, close it or update it
+            if (selectedDoctor && selectedDoctor.id === id) {
+                setIsModalOpen(false);
+            }
+
+        } catch (error) {
+            console.error("Reject failed", error);
         }
     };
 
-    // Open the modal with selected doctor details.
+    // ===============================
+    // VIEW DOCTOR DETAILS
+    // ===============================
     const viewDetails = (doctor) => {
         setSelectedDoctor(doctor);
         setIsModalOpen(true);
     };
 
-    // Close and clear modal state.
     const closeModal = () => {
         setIsModalOpen(false);
         setSelectedDoctor(null);
@@ -96,7 +110,6 @@ const DoctorApprovals = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Doctor Approvals</h2>
 
-            {/* Requests table */}
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
@@ -194,7 +207,7 @@ const DoctorApprovals = () => {
                 </table>
             </div>
 
-            {/* View-details modal */}
+            {/* View Details Modal */}
             {isModalOpen && selectedDoctor && (
                 <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm sm:p-6">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -318,7 +331,7 @@ const DoctorApprovals = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {selectedDoctor.nicFile ? (
                                             <a
-                                                href={selectedDoctor.nicFile}
+                                                href={`http://localhost:8080/${selectedDoctor.nicFile}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center p-4 transition-all bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md group"
@@ -342,7 +355,7 @@ const DoctorApprovals = () => {
 
                                         {selectedDoctor.certificateFile ? (
                                             <a
-                                                href={selectedDoctor.certificateFile}
+                                                href={`http://localhost:8080/${selectedDoctor.certificateFile}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center p-4 transition-all bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md group"
