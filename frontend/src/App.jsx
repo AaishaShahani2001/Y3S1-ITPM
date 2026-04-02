@@ -22,11 +22,16 @@ import CounsellorDetails from "./pages/CounsellorDetails";
 
 import BookAppointment from "./pages/BookAppointment";
 
-
+import EventList from "./pages/events/EventList";
+import CreateEvent from "./pages/events/CreateEvent";
+import RegisterEvent from "./pages/events/RegisterEvent";
+import EventDetails from "./pages/events/EventDetails";
+import EventAnalyticsPage from "./pages/admin/EventAnalyticsPage";
+import MyEvents from "./pages/student/MyEvents";
 export default function App() {
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col relative overflow-x-hidden">
+      
       {/* NAVBAR */}
       <Navbar />
 
@@ -65,8 +70,14 @@ export default function App() {
           <Route path="/counsellor/:id" element={<CounsellorDetails />} />
           
 
-
-
+          {/* Event List Page */}
+          <Route path="/events" element={<EventList />} />
+          <Route path="/create-event" element={<CreateEvent />} />
+          <Route path="/register-event/:id" element={<RegisterEvent />} />
+          <Route path="/events/:id" element={<EventDetails />} />
+          <Route path="/admin/events/:id/analytics" element={<EventAnalyticsPage />} />
+          <Route path="/admin/event-analytics/:id" element={<EventAnalyticsPage />} />
+          <Route path="/my-events" element={<MyEvents />} />
         </Routes>
 
 
