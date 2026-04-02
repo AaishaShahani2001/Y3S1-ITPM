@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaSearch, FaUserTie, FaGraduationCap, FaMapMarkerAlt, FaBriefcase, FaStar } from "react-icons/fa";
 import BecomeCounsellorModal from "../components/BecomeCounsellorModal";
 import groupDoctors from "../assets/groupDoctors.jpg";
-import { DUMMY_COUNSELLORS } from "../data/dummyCounsellors";
 
-// Category filter options shown as chips.
 const CATEGORIES = [
   "Stress Management",
   "Academic Support",
@@ -16,29 +14,44 @@ const CATEGORIES = [
 ];
 
 export default function Counsellors() {
-  // Search query state.
   const [q, setQ] = useState("");
-  // Selected category chip.
   const [cat, setCat] = useState("All");
-  // Modal visibility state for "Become a Counsellor".
   const [openApply, setOpenApply] = useState(false);
-  // Data source for counsellor cards.
   const [counsellors, setCounsellors] = useState([]);
-  // Loader state to keep the same loading UI.
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Simulate async load using dummy data to keep existing UX.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCounsellors(DUMMY_COUNSELLORS);
-      setLoading(false);
-    }, 350);
-
-    return () => clearTimeout(timer);
+    const fetchCounsellors = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/api/counsellor/all");
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map(c => ({
+            id: c.id,
+            name: c.fullName,
+            category: c.specialization,
+            experience: c.experience,
+            workplace: c.workplace,
+            available: true, // Mocking availability true for backend fetched counsellors
+            rating: 4.8, // Mocking rating
+            bio: c.about || "Dedicated professional providing mental health support and guidance.",
+            image: c.profileImage
+              ? `http://localhost:8080/${c.profileImage}`
+              : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200"
+          }));
+          setCounsellors(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch counsellors", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCounsellors();
   }, []);
 
-  // Combined filter: category first, then search by name/specialization.
+  /* FILTERING */
   const filtered = useMemo(() => {
     const byCat =
       cat === "All"
@@ -169,7 +182,6 @@ export default function Counsellors() {
                         {c.category}
                       </div>
                     </div>
-                    
                     <div className="flex items-center bg-yellow-50 px-2 py-0.5 rounded-lg border border-yellow-100">
                       <FaStar className="text-yellow-400 text-[10px] mr-1" />
                       <span className="text-yellow-700 font-black text-[10px]">{c.rating}</span>

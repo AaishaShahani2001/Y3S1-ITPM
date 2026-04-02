@@ -52,7 +52,7 @@ const handleSubmit = async (e) => {
     return;
   }
 
-  // 🔥 VALIDATIONS
+ 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const phoneRegex = /^[0-9]{10}$/;
 
@@ -85,7 +85,7 @@ const handleSubmit = async (e) => {
   if (!form.agree)
     return setError("You must accept terms & conditions");
 
-  // 🔥 PAYLOAD
+  
   const payload = {
     event_id: Number(id),
     name: form.name,
@@ -139,7 +139,7 @@ const handleSubmit = async (e) => {
 
       <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-8">
 
-        {/* 🔥 FORM */}
+        {/*FORM */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -209,7 +209,7 @@ const handleSubmit = async (e) => {
           </form>
         </motion.div>
 
-        {/* 🔥 EVENT CARD */}
+        {/*EVENT CARD */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
@@ -242,7 +242,7 @@ const handleSubmit = async (e) => {
 
       </div>
 
-      {/* 🔥 INPUT STYLE */}
+      {/*INPUT STYLE */}
       <style>
         {`
           .input {
