@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaUserTie, FaGraduationCap, FaMapMarkerAlt, FaBriefcase, FaStar } from "react-icons/fa";
+import BecomeCounsellorModal from "../components/BecomeCounsellorModal";
 import groupDoctors from "../assets/groupDoctors.jpg";
 
 const CATEGORIES = [
@@ -8,49 +9,47 @@ const CATEGORIES = [
   "Academic Support",
   "Career Guidance",
   "Personal Development",
+  "Mental Health Specialist",
+  "Emotional Regulation Expert"
 ];
 
 export default function Counsellors() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
   const [openApply, setOpenApply] = useState(false);
+  const [counsellors, setCounsellors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const counsellors = [
-    {
-      id: 1,
-      name: "Dr. Nethmi Perera",
-      category: "Stress Management",
-      experience: 5,
-      workplace: "New Building F1301",
-      available: true,
-      rating: 4.8,
-      bio: "Specializing in student mental health and academic stress management.",
-      image: "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200"
-    },
-    {
-      id: 2,
-      name: "Mr. Dilan Fernando",
-      category: "Academic Support",
-      experience: 3,
-      workplace: "Main Building A202",
-      available: false,
-      rating: 4.5,
-      bio: "Helping students navigate academic challenges and improve performance.",
-      image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200&h=200"
-    },
-    {
-      id: 3,
-      name: "Ms. Kavindi Silva",
-      category: "Career Guidance",
-      experience: 4,
-      workplace: "Wellness Center W101",
-      available: true,
-      rating: 4.9,
-      bio: "Expert in career counseling and personal developmental growth.",
-      image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=200&h=200"
-    },
-  ];
+  useEffect(() => {
+    const fetchCounsellors = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/api/counsellor/all");
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map(c => ({
+            id: c.id,
+            name: c.fullName,
+            category: c.specialization,
+            experience: c.experience,
+            workplace: c.workplace,
+            available: true, // Mocking availability true for backend fetched counsellors
+            rating: 4.8, // Mocking rating
+            bio: c.about || "Dedicated professional providing mental health support and guidance.",
+            image: c.profileImage
+              ? `http://localhost:8080/${c.profileImage}`
+              : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200"
+          }));
+          setCounsellors(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch counsellors", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCounsellors();
+  }, []);
 
   /* FILTERING */
   const filtered = useMemo(() => {
@@ -68,7 +67,7 @@ export default function Counsellors() {
       : byCat;
 
     return bySearch;
-  }, [q, cat]);
+  }, [q, cat, counsellors]);
 
   return (
     <main className="min-h-screen bg-slate-50 pb-16">
@@ -133,7 +132,11 @@ export default function Counsellors() {
 
       {/* ================= GRID SECTION ================= */}
       <section className="mx-auto max-w-6xl px-6 py-12">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-white border-2 border-dashed border-slate-200 p-12 text-center text-slate-600 rounded-4xl">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <FaSearch className="text-xl text-slate-300" />

@@ -101,6 +101,17 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// If user has a pending counselor application, block login until admin approval.
+	var pendingApplication models.CounsellorApplication
+	if err := initializers.DB.
+		Where("user_id = ? AND status = ?", user.ID, "pending").
+		First(&pendingApplication).Error; err == nil {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Your counselor profile is under review. After admin approval, you can join.",
+		})
+		return
+	}
+
 	// Create JWT with role
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  user.ID,
