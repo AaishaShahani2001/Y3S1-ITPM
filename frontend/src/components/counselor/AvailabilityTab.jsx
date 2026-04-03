@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaClock, FaSignOutAlt, FaExclamationCircle, FaEye, FaEyeSlash, FaMapMarkerAlt } from "react-icons/fa";
+import { FaPlus, FaClock, FaExclamationCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import { toast } from "react-toastify";
 
 export default function AvailabilityTab() {
@@ -9,11 +9,6 @@ export default function AvailabilityTab() {
 
     // Slots from database
     const [slots, setSlots] = useState([]);
-
-    // Counselor assigned location from backend profile
-    const [assignedLocation, setAssignedLocation] = useState("Not Assigned");
-    const [assignedReason, setAssignedReason] = useState("");
-
 
 
     // Form states
@@ -33,6 +28,9 @@ export default function AvailabilityTab() {
     const [error, setError] = useState("");
 
     const [expandedDates, setExpandedDates] = useState({});
+
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const toggleDate = (date) => {
         setExpandedDates(prev => ({ ...prev, [date]: !prev[date] }));
@@ -73,22 +71,6 @@ export default function AvailabilityTab() {
         loadSlots();
 
     }, []);
-
-    useEffect(() => {
-        const loadAssignedLocation = async () => {
-            if (!user?.id) return;
-            try {
-                const res = await fetch(`http://localhost:3000/api/counsellor/profile/${user.id}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                setAssignedLocation(data.workplace || "Not Assigned");
-                setAssignedReason(data.locationReason || "");
-            } catch (err) {
-                console.error("Failed to load assigned location", err);
-            }
-        };
-        loadAssignedLocation();
-    }, [user?.id]);
 
 
     // ADD SLOT
@@ -237,14 +219,19 @@ export default function AvailabilityTab() {
     };
 
 
-    // REMOVE SLOT
-    const handleRemoveSlot = async (id) => {
+    const slotPendingDelete =
+        deleteConfirmId != null
+            ? slots.find((s) => Number(s.id) === Number(deleteConfirmId))
+            : null;
 
-        //  confirm delete (optional but good)
-        if (!window.confirm("Delete this slot?")) return;
+    // REMOVE SLOT (after in-app confirmation)
+    const handleConfirmRemoveSlot = async () => {
+        if (deleteConfirmId == null) return;
+
+        const id = deleteConfirmId;
+        setIsDeleting(true);
 
         try {
-
             const res = await fetch(
                 `http://localhost:3000/api/counsellor/availability/${id}`,
                 {
@@ -254,21 +241,22 @@ export default function AvailabilityTab() {
 
             const data = await res.json();
 
-            //  STOP if backend failed
             if (!res.ok) {
                 toast.error(data.error || "Delete failed");
                 return;
             }
 
-            //  SAFE state update
-            setSlots(prev => prev.filter(slot => Number(slot.id) !== Number(id)));
+            setSlots((prev) =>
+                prev.filter((slot) => Number(slot.id) !== Number(id))
+            );
 
+            setDeleteConfirmId(null);
             toast.success("Slot removed");
-            console.log("Deleting ID:", id);
-
         } catch (err) {
             console.error("Failed to delete slot", err);
             toast.error("Something went wrong");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -287,28 +275,9 @@ export default function AvailabilityTab() {
     return (
         <div className="animate-fadeIn space-y-8">
 
-            {/* Page Title & Location Info */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-2xl font-black tracking-tight text-slate-800">
-                    Availability Settings
-                </h2>
-                
-                {/* Assigned Location Badge */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2.5 rounded-xl shadow-sm">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                            <FaMapMarkerAlt />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-0.5">Assigned Location</p>
-                            <p className="text-sm font-bold text-indigo-700">{assignedLocation}</p>
-                        </div>
-                    </div>
-                    {assignedReason && (
-                        <p className="text-xs text-slate-500 max-w-50 text-right ml-auto italic">Note: {assignedReason}</p>
-                    )}
-                </div>
-            </div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-800">
+                Availability Settings
+            </h2>
 
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -506,9 +475,10 @@ export default function AvailabilityTab() {
                                                             Edit
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleRemoveSlot(s.id);
+                                                                setDeleteConfirmId(s.id);
                                                             }}
                                                             className="px-3 py-1 text-sm font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
                                                         >
@@ -526,6 +496,56 @@ export default function AvailabilityTab() {
 
 
             </div>
+
+            {deleteConfirmId != null && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="delete-slot-title"
+                    onClick={() => !isDeleting && setDeleteConfirmId(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md w-full p-6 space-y-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3
+                            id="delete-slot-title"
+                            className="text-lg font-black text-slate-800"
+                        >
+                            Remove this slot?
+                        </h3>
+                        {slotPendingDelete && (
+                            <p className="text-sm text-slate-600">
+                                {new Date(slotPendingDelete.date).toLocaleDateString()}{" "}
+                                · {slotPendingDelete.startTime} –{" "}
+                                {slotPendingDelete.endTime}
+                            </p>
+                        )}
+                        <p className="text-sm text-slate-500">
+                            This slot will no longer be available for booking.
+                        </p>
+                        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="px-5 py-2.5 rounded-xl font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={handleConfirmRemoveSlot}
+                                className="px-5 py-2.5 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                            >
+                                {isDeleting ? "Removing…" : "Remove slot"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
