@@ -9,5 +9,7 @@ func SyncDatabase() {
 		&models.CounsellorApplication{},
 		&models.Appointment{},
 		&models.CounsellorAvailability{},
+		&models.MoodRequest{},
+		&models.AIRecommendation{},
 	)
 }
