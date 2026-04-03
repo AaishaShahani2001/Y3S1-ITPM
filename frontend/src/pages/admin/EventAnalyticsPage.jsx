@@ -31,17 +31,19 @@ export default function EventAnalyticsPage() {
 
   if (!event) return <div className="p-10">Loading...</div>;
 
-  // 🔥 DATA PROCESSING
-  const male = registrations.filter(r => r.Gender === "Male").length;
-  const female = registrations.filter(r => r.Gender === "Female").length;
+  //DATA PROCESSING
+  const confirmedRegs = registrations.filter(r => r.Status !== "waitlist");
+  const male = confirmedRegs.filter(r => r.Gender === "Male").length;
+  const female = confirmedRegs.filter(r => r.Gender === "Female").length;
+
 
   const facultyMap = {};
-  registrations.forEach(r => {
+  confirmedRegs.forEach(r => {
     facultyMap[r.Faculty] = (facultyMap[r.Faculty] || 0) + 1;
   });
 
   const uniMap = {};
-  registrations.forEach(r => {
+  confirmedRegs.forEach(r => {
     uniMap[r.University] = (uniMap[r.University] || 0) + 1;
   });
 
@@ -127,7 +129,7 @@ export default function EventAnalyticsPage() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
 
-      {/* 🔥 HEADER */}
+      {/*HEADER */}
       <div className="flex justify-between items-center mb-6">
         <motion.h2 
           initial={{ opacity: 0, y: -20 }}
@@ -145,12 +147,12 @@ export default function EventAnalyticsPage() {
         </button>
       </div>
 
-      {/* 🔥 STATS */}
+      {/*STATS */}
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         {[ 
-          { label: "Total", value: registrations.length },
+          { label: "Total", value: confirmedRegs.length },
           { label: "Capacity", value: event.Capacity },
-          { label: "Remaining", value: event.Capacity - registrations.length }
+          { label: "Remaining", value: event.Capacity - confirmedRegs.length }
         ].map((item, i) => (
           <motion.div
             key={i}
@@ -163,7 +165,7 @@ export default function EventAnalyticsPage() {
         ))}
       </div>
 
-      {/* 🔥 CHARTS */}
+      {/*CHARTS */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
 
         <div ref={genderRef} className="bg-white p-4 rounded-2xl shadow">
@@ -188,38 +190,91 @@ export default function EventAnalyticsPage() {
 
       </div>
 
-      {/* 🔥 TABLE */}
-      <div className="bg-white rounded-2xl shadow p-4">
-        <h3 className="mb-4 font-semibold">Registered Students</h3>
+      {/*REGISTERED STUDENTS */}
+<div className="bg-white rounded-xl shadow overflow-hidden mb-6">
+  <h3 className="p-4 font-semibold border-b">Registered Students</h3>
 
-        {registrations.length === 0 ? (
-          <p>No registrations</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th>Name</th>
-                <th>Email</th>
-                <th>University</th>
-                <th>Faculty</th>
-                <th>Gender</th>
+  <table className="w-full text-sm">
+    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+      <tr>
+        <th className="p-3 text-left">Name</th>
+        <th className="p-3 text-left">Email</th>
+        <th className="p-3 text-left">University</th>
+        <th className="p-3 text-left">Faculty</th>
+        <th className="p-3 text-left">Gender</th>
+        <th className="p-3 text-left">Status</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {registrations
+        .filter(r => r.Status !== "waitlist")
+        .map((r) => (
+          <tr key={r.ID} className="border-t hover:bg-gray-50">
+
+            <td className="p-3 font-medium">{r.Name}</td>
+            <td className="p-3 text-gray-600">{r.Email}</td>
+            <td className="p-3">{r.University}</td>
+            <td className="p-3">{r.Faculty}</td>
+            <td className="p-3">{r.Gender}</td>
+
+            <td className="p-3">
+              <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-600">
+                Confirmed
+              </span>
+            </td>
+
+          </tr>
+        ))}
+    </tbody>
+  </table>
+</div>
+
+
+    {/*WAITLIST STUDENTS */}
+    <div className="bg-white rounded-xl shadow overflow-hidden">
+      <h3 className="p-4 font-semibold border-b">Waitlist Students</h3>
+
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+          <tr>
+            <th className="p-3 text-left">#</th>
+            <th className="p-3 text-left">Name</th>
+            <th className="p-3 text-left">Email</th>
+            <th className="p-3 text-left">University</th>
+            <th className="p-3 text-left">Faculty</th>
+            <th className="p-3 text-left">Gender</th>
+            <th className="p-3 text-left">Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {registrations
+            .filter(r => r.Status === "waitlist")
+            .map((r, index) => (
+              <tr key={r.ID} className="border-t hover:bg-gray-50">
+
+                <td className="p-3 font-semibold text-gray-500">
+                  {index + 1}
+                </td>
+
+                <td className="p-3 font-medium">{r.Name}</td>
+                <td className="p-3 text-gray-600">{r.Email}</td>
+                <td className="p-3">{r.University}</td>
+                <td className="p-3">{r.Faculty}</td>
+                <td className="p-3">{r.Gender}</td>
+
+                <td className="p-3">
+                  <span className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-600">
+                    Waitlist
+                  </span>
+                </td>
+
               </tr>
-            </thead>
-
-            <tbody>
-              {registrations.map((r) => (
-                <tr key={r.ID} className="border-b hover:bg-gray-50">
-                  <td>{r.Name}</td>
-                  <td>{r.Email}</td>
-                  <td>{r.University}</td>
-                  <td>{r.Faculty}</td>
-                  <td>{r.Gender}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            ))}
+        </tbody>
+      </table>
+    </div>
 
     </div>
   );

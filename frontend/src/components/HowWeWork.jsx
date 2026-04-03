@@ -31,7 +31,7 @@ export default function HowWeWork() {
   ];
 
   return (
-    <section className="bg-slate-50 py-24 border-t border-slate-100 relative">
+    <section className="bg-transparent py-24 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
 
         {/* SECTION HEADER */}
@@ -51,24 +51,22 @@ export default function HowWeWork() {
         {/* PROCESS STEPS */}
         <div className="relative grid grid-cols-1 md:grid-cols-4 gap-12 text-center">
 
-          {/* CONNECTING LINE (Desktop) */}
-          <div className="hidden md:block absolute top-12 left-[12%] right-[12%] h-0.5 bg-blue-100 -z-10">
-            {/* Animated Progress Line Effect (Optional) */}
-            <div className="absolute top-0 left-0 h-full w-full bg-linear-to-r from-blue-100 via-blue-300 to-blue-100 opacity-50" />
+          {/* Animated Connecting Line (Desktop) */}
+          <div className="hidden md:block absolute top-16 left-[10%] right-[10%] h-1 bg-slate-200/50 -z-10 rounded-full overflow-hidden">
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-blue-400 to-transparent w-1/2 animate-shimmer" />
           </div>
 
           {steps.map((step, index) => (
             <div key={index} className="relative group">
               {/* Step Number Decoration */}
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-6xl font-black text-slate-100/80 -z-20 select-none group-hover:text-blue-100/50 transition-colors">
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-9xl font-black text-slate-200/20 -z-20 select-none group-hover:text-blue-500/10 transition-all duration-700">
                 0{index + 1}
               </div>
 
               {/* Icon Circle */}
-              <div className="relative w-24 h-24 mx-auto rounded-full bg-white border-4 border-blue-50 flex items-center justify-center mb-6 shadow-sm group-hover:border-blue-500 group-hover:shadow-blue-200/50 group-hover:shadow-xl transition-all duration-300 z-10">
-                <step.icon className="text-blue-600 text-3xl group-hover:scale-110 transition-transform duration-300" />
-                {/* Ping effect on hover */}
-                <span className="absolute w-full h-full rounded-full border border-blue-400 opacity-0 group-hover:animate-ping-slow"></span>
+              <div className="relative w-28 h-28 mx-auto rounded-full bg-white/80 backdrop-blur-md border-[6px] border-white shadow-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-500 z-10 group-hover:shadow-blue-200/50">
+                <div className="absolute inset-0 rounded-full border-2 border-transparent group-hover:border-blue-400 group-hover:animate-spin-slow" />
+                <step.icon className="text-blue-600 text-4xl group-hover:scale-110 transition-transform duration-500" />
               </div>
 
               {/* Content */}
