@@ -10,4 +10,5 @@ func SetupRoutes(r *gin.Engine) {
 	AdminRoutes(r)
 	AvailabilityRoutes(r)
 	AppointmentRoutes(r)
+	MoodRoutes(r)
 }
