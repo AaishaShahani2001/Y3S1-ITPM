@@ -20,88 +20,112 @@ export default function EventDetails() {
 
   if (!event) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Loading event...
       </div>
     );
   }
 
+  //CHECK IF EVENT FULL
+  const isFull = event.Registered >= event.Capacity;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">
 
-      {/* 🔥 HERO BANNER */}
-      <div className="pt-6">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative rounded-3xl overflow-hidden shadow-2xl"
-          >
-            <img
-              src={
-                event.Image
-                  ? `http://localhost:3000/${event.Image}`
-                  : "https://via.placeholder.com/800x300"
-              }
-              className="w-full h-[300px] object-cover"
-            />
+      {/* HERO */}
+      <div className="max-w-6xl mx-auto px-6 pt-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative rounded-3xl overflow-hidden shadow-2xl"
+        >
+          <img
+            src={
+              event.Image
+                ? `http://localhost:3000/${event.Image}`
+                : "https://via.placeholder.com/800x300"
+            }
+            className="w-full h-[320px] object-cover"
+          />
 
-            {/* GRADIENT OVERLAY */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
+          {/* DARK OVERLAY */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
 
-            {/* TEXT */}
-            <div className="absolute bottom-6 left-6">
-              <h2 className="text-white text-3xl font-bold">
-                {event.Title}
-              </h2>
-              <p className="text-gray-200 text-sm mt-1">
-                Explore and grow your wellbeing
-              </p>
-            </div>
-          </motion.div>
-        </div>
+          {/* TITLE */}
+          <div className="absolute bottom-6 left-6">
+            <h2 className="text-white text-4xl font-bold">
+              {event.Title}
+            </h2>
+            <p className="text-gray-200 text-sm mt-1">
+              Enhance your wellbeing journey
+            </p>
+          </div>
+        </motion.div>
       </div>
 
-      {/* 🔥 FLOATING CARD */}
+      {/* MAIN CARD */}
       <div className="max-w-6xl mx-auto px-6">
         <motion.div
-          initial={{ y: 40, opacity: 0 }}
+          initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white/70 backdrop-blur-xl border border-gray-200 rounded-3xl shadow-xl p-6 flex flex-col md:flex-row justify-between items-center -mt-16 relative z-10"
+          className="bg-white/70 backdrop-blur-xl border rounded-3xl shadow-xl p-6 flex flex-col md:flex-row justify-between items-center -mt-16 relative z-10"
         >
+
           {/* LEFT */}
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
               {event.Title}
             </h2>
 
-            <p className="text-gray-500 text-sm mt-1">
-              Wellbeing Event • 2hrs • Interactive
-            </p>
+            {/* BADGES */}
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                Wellbeing
+              </span>
+              <span className="px-3 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+                Interactive
+              </span>
+              <span className="px-3 py-1 bg-purple-100 text-purple-600 text-xs rounded-full">
+                2 Hours
+              </span>
+            </div>
 
-            <div className="mt-4 space-y-1 text-sm text-gray-600">
+            {/* INFO */}
+            <div className="mt-4 space-y-2 text-sm text-gray-600">
               <p>📅 {event.Date}</p>
+              <p>⏰ {event.Time}</p>
               <p>📍 {event.Location}</p>
             </div>
 
-            <div className="mt-2 text-blue-600 font-semibold text-sm">
+            <div className="mt-2 text-indigo-600 font-semibold text-sm">
               Capacity: {event.Capacity}
             </div>
+
+            {/*FULL WARNING */}
+            {isFull && (
+              <p className="text-red-500 text-sm mt-2">
+                ⚠️ Event full — you will be added to waitlist
+              </p>
+            )}
           </div>
 
-          {/* 🔥 CTA BUTTON */}
+          {/* CTA BUTTON */}
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate(`/register-event/${event.ID}`)}
-            className="mt-4 md:mt-0 px-10 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg hover:shadow-xl transition"
+            className={`mt-5 md:mt-0 px-10 py-3 rounded-xl text-white font-semibold shadow-lg transition
+              ${isFull
+                ? "bg-gray-500 hover:bg-gray-600"
+                : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:shadow-xl"}
+            `}
           >
-            Register Now →
+            {isFull ? "Join Waitlist →" : "Register Now →"}
           </motion.button>
         </motion.div>
       </div>
 
-      {/* 🔥 CONTENT */}
+      {/* CONTENT */}
       <div className="max-w-6xl mx-auto px-6 mt-12 grid md:grid-cols-3 gap-8">
 
         {/* LEFT */}
@@ -109,8 +133,8 @@ export default function EventDetails() {
 
           {/* ABOUT */}
           <motion.div
-            whileHover={{ y: -5 }}
-            className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
+            whileHover={{ y: -6 }}
+            className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
           >
             <h3 className="font-semibold text-lg mb-3 text-gray-800">
               About Event
@@ -122,8 +146,8 @@ export default function EventDetails() {
 
           {/* TERMS */}
           <motion.div
-            whileHover={{ y: -5 }}
-            className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
+            whileHover={{ y: -6 }}
+            className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
           >
             <h3 className="font-semibold text-lg mb-3 text-gray-800">
               Terms & Conditions
@@ -138,11 +162,11 @@ export default function EventDetails() {
 
         {/* RIGHT */}
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
+          whileHover={{ scale: 1.03 }}
+          className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-lg border"
         >
           <h3 className="font-semibold text-lg mb-3 text-gray-800">
-            Location
+            📍 Location
           </h3>
 
           <p className="text-gray-600 text-sm mb-4">

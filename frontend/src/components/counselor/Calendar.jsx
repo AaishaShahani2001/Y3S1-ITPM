@@ -1,81 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight, FaClock, FaUser } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const toIsoDate = (date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-};
-
-const buildDummyAppointments = () => {
-    const now = new Date();
-    const makeDate = (offsetDays) => {
-        const d = new Date(now);
-        d.setDate(now.getDate() + offsetDays);
-        return toIsoDate(d);
-    };
-
-    return [
-        {
-            id: 701,
-            bookingId: "MB-CAL-701",
-            studentName: "Liam Santos",
-            studentEmail: "liam.santos@student.local",
-            date: makeDate(0),
-            timeSlot: "09:00 AM - 10:00 AM",
-            status: "Confirmed",
-            counselorCancelNote: "",
-            studentCancelNote: "",
-        },
-        {
-            id: 702,
-            bookingId: "MB-CAL-702",
-            studentName: "Maya Perera",
-            studentEmail: "maya.perera@student.local",
-            date: makeDate(0),
-            timeSlot: "02:00 PM - 03:00 PM",
-            status: "Pending",
-            counselorCancelNote: "",
-            studentCancelNote: "",
-        },
-        {
-            id: 703,
-            bookingId: "MB-CAL-703",
-            studentName: "Noah Reyes",
-            studentEmail: "noah.reyes@student.local",
-            date: makeDate(1),
-            timeSlot: "10:30 AM - 11:30 AM",
-            status: "Cancelled",
-            counselorCancelNote: "Emergency offsite consultation.",
-            studentCancelNote: "",
-        },
-        {
-            id: 704,
-            bookingId: "MB-CAL-704",
-            studentName: "Ava Cruz",
-            studentEmail: "ava.cruz@student.local",
-            date: makeDate(3),
-            timeSlot: "11:00 AM - 12:00 PM",
-            status: "Confirmed",
-            counselorCancelNote: "",
-            studentCancelNote: "Family emergency. Please reschedule.",
-        },
-        {
-            id: 705,
-            bookingId: "MB-CAL-705",
-            studentName: "Ethan Lim",
-            studentEmail: "ethan.lim@student.local",
-            date: makeDate(6),
-            timeSlot: "01:00 PM - 02:00 PM",
-            status: "Completed",
-            counselorCancelNote: "",
-            studentCancelNote: "",
-        },
-    ];
-};
 
 export default function Calendar() {
     const [appointments, setAppointments] = useState([]);
@@ -92,13 +19,30 @@ export default function Calendar() {
         return `${yyyy}-${mm}-${dd}`;
     });
 
+    const user = JSON.parse(localStorage.getItem("user"));
+
     const fetchAppointments = async () => {
+        if (!user?.token) {
+            setAppointments([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            const dummy = buildDummyAppointments();
-            setAppointments(dummy.filter((a) => (a.status || "").toLowerCase() !== "deleted"));
+            const res = await fetch("http://localhost:3000/api/appointments/counselor", {
+                headers: { Authorization: `Bearer ${user.token}` },
+            });
+            if (!res.ok) {
+                toast.error("Failed to load calendar appointments");
+                setAppointments([]);
+                return;
+            }
+            const data = await res.json();
+            const normalized = Array.isArray(data) ? data : [];
+            setAppointments(normalized.filter((a) => (a.status || "").toLowerCase() !== "deleted"));
         } catch (err) {
             console.error("Failed to load counselor calendar", err);
+            toast.error("Failed to load calendar appointments");
             setAppointments([]);
         } finally {
             setLoading(false);
@@ -107,7 +51,7 @@ export default function Calendar() {
 
     useEffect(() => {
         fetchAppointments();
-    }, []);
+    }, [user?.token]);
 
     const appointmentsByDate = useMemo(() => {
         const map = new Map();

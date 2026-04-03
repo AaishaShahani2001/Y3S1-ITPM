@@ -9,13 +9,11 @@ import {
   FaSearch,
 } from "react-icons/fa";
 
-// ✅ YOUR FEATURE
 import MyEvents from "./MyEvents";
-
-// ✅ TEAM FEATURES
 import AppointmentsTab from "../../components/student/AppointmentsTab";
 import MyWaitListTab from "../../components/student/MyWaitListTab";
 import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
+import MyReportView from "../../components/student/MyReportView";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaThLarge /> },
@@ -24,12 +22,18 @@ const TABS = [
   { id: "treatment", label: "Treatment Plan", icon: <FaCalendarCheck /> },
   { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
   { id: "settings", label: "Settings", icon: <FaCog /> },
-  { id: "events", label: "My Events", icon: <FaCalendarCheck /> }, // ✅ YOUR FEATURE
+  { id: "events", label: "My Events", icon: <FaCalendarCheck /> },
 ];
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [user, setUser] = useState(null);
+  const [reportUnlocked, setReportUnlocked] = useState(false);
+
+  const handleViewReport = () => {
+    setReportUnlocked(true);
+    setActiveTab("reports");
+  };
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -99,10 +103,15 @@ export default function StudentDashboard() {
 
           {activeTab === "appointments" && <AppointmentsTab />}
           {activeTab === "waitlist" && <MyWaitListTab />}
-          {activeTab === "treatment" && <TreatmentPlanTab />}
+          {activeTab === "treatment" && (
+            <TreatmentPlanTab onViewReport={handleViewReport} />
+          )}
+          {activeTab === "reports" && (
+            <MyReportView reportUnlocked={reportUnlocked} />
+          )}
 
           {activeTab === "overview" && <p>Overview coming soon...</p>}
-          {activeTab === "reports" && <p>Reports coming soon...</p>}
+          
           {activeTab === "settings" && <p>Settings coming soon...</p>}
 
         </div>
