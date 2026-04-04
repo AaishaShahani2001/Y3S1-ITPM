@@ -11,5 +11,6 @@ func SyncDatabase() {
 		&models.CounsellorAvailability{},
 		&models.MoodRequest{},
 		&models.AIRecommendation{},
+		&models.TreatmentPlan{},
 	)
 }

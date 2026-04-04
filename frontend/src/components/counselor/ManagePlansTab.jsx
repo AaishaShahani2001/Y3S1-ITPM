@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaPlus,
   FaCheckCircle,
@@ -12,6 +12,8 @@ import {
   FaLock,
   FaEyeSlash,
 } from "react-icons/fa";
+
+const API_BASE_URL = "http://localhost:3000";
 
 // Dummy Appointments
 const appointments = [
@@ -127,12 +129,45 @@ const initialPlans = [
 ];
 
 export default function ManagePlansTab() {
-  const [plans, setPlans] = useState(initialPlans);
+  const [plans, setPlans] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [expandedStepId, setExpandedStepId] = useState(null);
+
+const fetchPlans = () => {
+  fetch(`${API_BASE_URL}/api/treatment-plans`)
+    .then((res) => res.json())
+    .then((data) => {
+  setPlans(
+  data.map((plan) => ({
+    id: plan.id,
+    appointmentId: plan.appointment_id,
+   student: plan.student_name || "Student ID: " + plan.student_id,
+    caseId: "CASE-" + plan.id,
+    status: plan.status === "pending" ? "Pending" : plan.status,
+    progress: plan.status === "Completed" ? 100 : 50,
+    treatmentIdea: plan.description,
+    primaryObjective: plan.title,
+    lastUpdated: "Just now",
+    counsellorName: plan.counsellor_name || "Counsellor",
+    recommendations: {
+      dailyRoutine: "Follow routine",
+      readingMaterials: "Provided",
+      exercisePlan: "Breathing exercise",
+    },
+  }))
+);
+    })
+    .catch((err) => {
+      console.error("Error fetching plans:", err);
+    });
+};
+
+useEffect(() => {
+  fetchPlans();
+}, []);
 
   const [formData, setFormData] = useState({
     appointmentId: "",
@@ -202,41 +237,67 @@ export default function ManagePlansTab() {
 
     if (!selectedAppointment) return;
 
-    if (isEditing) {
-      const updatedPlans = plans.map((plan) =>
-        plan.id === editingPlanId
-          ? {
-            ...plan,
-            appointmentId: selectedAppointment.id,
-            student: selectedAppointment.student,
-            caseId: selectedAppointment.caseId,
-            treatmentIdea: formData.treatmentIdea,
-            primaryObjective: formData.primaryObjective,
-            progress: Number(formData.progress),
-            status: formData.status,
-            recommendations: formData.recommendations,
-            lastUpdated: "Today",
-          }
-          : plan
-      );
-      setPlans(updatedPlans);
+ if (isEditing) {
+  const updatedPlan = {
+    appointment_id: selectedAppointment.id,
+    counsellor_id: 1,
+    student_id: selectedAppointment.student_id || 2,
+    title: formData.primaryObjective,
+    description: formData.treatmentIdea,
+    status: formData.status,
+  };
+
+  fetch(`${API_BASE_URL}/api/treatment-plans/${editingPlanId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updatedPlan),
+  })
+   .then((res) => {
+  if (!res.ok) {
+    throw new Error("Failed to update");
+  }
+  return res.json();
+})
+.then(() => {
+      fetchPlans();
       alert("Treatment plan updated successfully!");
-    } else {
-      const newPlan = {
-        id: Date.now(),
-        appointmentId: selectedAppointment.id,
-        student: selectedAppointment.student,
-        caseId: selectedAppointment.caseId,
-        treatmentIdea: formData.treatmentIdea,
-        primaryObjective: formData.primaryObjective,
-        progress: Number(formData.progress),
-        status: formData.status,
-        recommendations: formData.recommendations,
-        lastUpdated: "Today",
-      };
-      setPlans([...plans, newPlan]);
-      alert("Treatment plan added successfully!");
-    }
+      handleBackToPlans();
+    })
+    .catch((err) => {
+      console.error("Error updating treatment plan:", err);
+      alert("Failed to update treatment plan");
+    });
+
+  return;
+} else {
+  const newPlan = {
+    appointment_id: selectedAppointment.id,
+    counsellor_id: 1,
+    student_id: selectedAppointment.student_id || 2,
+    title: formData.primaryObjective,
+    description: formData.treatmentIdea,
+    status: formData.status,
+  };
+
+  fetch(`${API_BASE_URL}/api/treatment-plans`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(newPlan),
+})
+  .then((res) => res.json())
+  .then((savedPlan) => {
+   fetchPlans();
+    alert("Treatment plan added successfully!");
+  })
+  .catch((err) => {
+    console.error("Error adding treatment plan:", err);
+    alert("Failed to add treatment plan");
+  });
+}
 
     handleBackToPlans();
   };
@@ -258,10 +319,22 @@ export default function ManagePlansTab() {
   };
 
   const handleDelete = (planId) => {
-    const ok = window.confirm("Delete this treatment plan?");
-    if (!ok) return;
-    setPlans(plans.filter((p) => p.id !== planId));
-  };
+  const ok = window.confirm("Delete this treatment plan?");
+  if (!ok) return;
+
+  fetch(`${API_BASE_URL}/api/treatment-plans/${planId}`, {
+    method: "DELETE",
+  })
+    .then((res) => res.json())
+    .then(() => {
+      fetchPlans();
+      alert("Treatment plan deleted successfully!");
+    })
+    .catch((err) => {
+      console.error("Error deleting treatment plan:", err);
+      alert("Failed to delete treatment plan");
+    });
+};
 
   const handleView = (plan) => {
     setSelectedPlan(plan);
