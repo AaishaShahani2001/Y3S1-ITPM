@@ -37,7 +37,7 @@ export default function Counsellors() {
             rating: 4.8, // Mocking rating
             bio: c.about || "Dedicated professional providing mental health support and guidance.",
             image: c.profileImage
-              ? `http://localhost:8080/${c.profileImage}`
+              ? `http://localhost:3000/${c.profileImage}`
               : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200"
           }));
           setCounsellors(mapped);
