@@ -121,10 +121,10 @@ export default function CounselorDashboard() {
             <div className="h-8 w-px bg-slate-100 mx-1 hidden md:block"></div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden md:block min-w-0">
-                <p className="text-xs font-black tracking-tight truncate max-w-[200px]">
+                <p className="text-xs font-black tracking-tight truncate max-w-50">
                   {headerProfile.fullName || user?.name || "Counselor"}
                 </p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[200px]">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-50">
                   {headerProfile.specialization || "Counselor"}
                 </p>
               </div>
