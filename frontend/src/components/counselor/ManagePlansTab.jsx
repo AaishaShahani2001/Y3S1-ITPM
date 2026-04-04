@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   FaPlus,
   FaCheckCircle,
@@ -15,42 +15,6 @@ import {
 
 const API_BASE_URL = "http://localhost:3000";
 
-// Dummy Appointments
-const appointments = [
-  {
-    id: 1,
-    student: "Anjali Kumar",
-    caseId: "C102",
-    date: "2026-03-28",
-    time: "10:00 AM",
-    issue: "Exam Anxiety",
-  },
-  {
-    id: 2,
-    student: "Rahul Singh",
-    caseId: "C091",
-    date: "2026-03-29",
-    time: "02:00 PM",
-    issue: "Academic Stress",
-  },
-  {
-    id: 3,
-    student: "Maya Reddy",
-    caseId: "C110",
-    date: "2026-03-30",
-    time: "11:30 AM",
-    issue: "Low Motivation",
-  },
-  {
-    id: 4,
-    student: "Karan Patel",
-    caseId: "C087",
-    date: "2026-03-31",
-    time: "09:30 AM",
-    issue: "Severe Anxiety",
-  },
-];
-
 const treatmentIdeas = [
   "Exam Anxiety Management Plan",
   "Stress Reduction & Breathing Routine",
@@ -60,76 +24,25 @@ const treatmentIdeas = [
   "Custom / Other",
 ];
 
-// Dummy Plans
-const initialPlans = [
-  {
-    id: 101,
-    appointmentId: 1,
-    student: "Anjali Kumar",
-    caseId: "C102",
-    status: "Active",
-    progress: 60,
-    treatmentIdea: "Exam Anxiety Management Plan",
-    primaryObjective: "Reduce exam fear and improve confidence",
-    lastUpdated: "2 days ago",
-    recommendations: {
-      dailyRoutine: "Follow a 2-hour structured study block daily",
-      readingMaterials: "Short notes and past papers",
-      exercisePlan: "10 minutes breathing exercise before study",
-    },
-  },
-  {
-    id: 102,
-    appointmentId: 2,
-    student: "Rahul Singh",
-    caseId: "C091",
-    status: "Completed",
-    progress: 100,
-    treatmentIdea: "Stress Reduction & Breathing Routine",
-    primaryObjective: "Manage stress better during academic tasks",
-    lastUpdated: "Today",
-    recommendations: {
-      dailyRoutine: "Morning reflection and study planning",
-      readingMaterials: "Stress awareness handout",
-      exercisePlan: "Guided breathing and stretching",
-    },
-  },
-  {
-    id: 103,
-    appointmentId: 3,
-    student: "Maya Reddy",
-    caseId: "C110",
-    status: "Pending",
-    progress: 30,
-    treatmentIdea: "Motivation Recovery Plan",
-    primaryObjective: "Improve consistency and focus",
-    lastUpdated: "1 week ago",
-    recommendations: {
-      dailyRoutine: "Use daily checklist and planner",
-      readingMaterials: "Motivational study guide",
-      exercisePlan: "20 minute walk every evening",
-    },
-  },
-  {
-    id: 104,
-    appointmentId: 4,
-    student: "Karan Patel",
-    caseId: "C087",
-    status: "Needs Attention",
-    progress: 20,
-    treatmentIdea: "Confidence Building Plan",
-    primaryObjective: "Reduce panic and improve emotional control",
-    lastUpdated: "3 days ago",
-    recommendations: {
-      dailyRoutine: "Maintain calm routine and sleep schedule",
-      readingMaterials: "Counsellor-provided calming guide",
-      exercisePlan: "Grounding exercise twice daily",
-    },
-  },
-];
+function normalizeCounselorAppointment(row) {
+  const id = row.id ?? row.ID;
+  return {
+    id,
+    studentId: row.studentId ?? row.student_id,
+    studentName: row.studentName || row.student_name || "Unknown student",
+    date: row.date || "",
+    timeSlot: row.timeSlot || row.time_slot || "",
+    mood: row.mood || "",
+    status: row.status || "",
+  };
+}
 
 export default function ManagePlansTab() {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
   const [plans, setPlans] = useState([]);
+  const [counselorAppointments, setCounselorAppointments] = useState([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState(null);
@@ -138,36 +51,72 @@ export default function ManagePlansTab() {
 
 const fetchPlans = () => {
   fetch(`${API_BASE_URL}/api/treatment-plans`)
-    .then((res) => res.json())
-    .then((data) => {
-  setPlans(
-  data.map((plan) => ({
-    id: plan.id,
-    appointmentId: plan.appointment_id,
-   student: plan.student_name || "Student ID: " + plan.student_id,
-    caseId: "CASE-" + plan.id,
-    status: plan.status === "pending" ? "Pending" : plan.status,
-    progress: plan.status === "Completed" ? 100 : 50,
-    treatmentIdea: plan.description,
-    primaryObjective: plan.title,
-    lastUpdated: "Just now",
-    counsellorName: plan.counsellor_name || "Counsellor",
-    recommendations: {
-      dailyRoutine: "Follow routine",
-      readingMaterials: "Provided",
-      exercisePlan: "Breathing exercise",
-    },
-  }))
-);
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) {
+        console.error("Error fetching plans:", data?.error || res.statusText);
+        setPlans([]);
+        return;
+      }
+      const list = Array.isArray(data) ? data : [];
+      setPlans(
+        list.map((plan) => ({
+          id: plan.id,
+          appointmentId: plan.appointment_id,
+          student: plan.student_name || "Student ID: " + plan.student_id,
+          caseId: "CASE-" + plan.id,
+          status: plan.status === "pending" ? "Pending" : plan.status,
+          progress: plan.status === "Completed" ? 100 : 50,
+          treatmentIdea: plan.description,
+          primaryObjective: plan.title,
+          lastUpdated: "Just now",
+          counsellorName: plan.counsellor_name || "Counsellor",
+          recommendations: {
+            dailyRoutine: "Follow routine",
+            readingMaterials: "Provided",
+            exercisePlan: "Breathing exercise",
+          },
+        }))
+      );
     })
     .catch((err) => {
       console.error("Error fetching plans:", err);
+      setPlans([]);
     });
 };
 
+  const fetchCounselorAppointments = useCallback(async () => {
+    const u = JSON.parse(localStorage.getItem("user") || "null");
+    if (!u?.token) {
+      setCounselorAppointments([]);
+      setAppointmentsLoading(false);
+      return;
+    }
+    setAppointmentsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/appointments/counselor`, {
+        headers: { Authorization: `Bearer ${u.token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load appointments:", data?.error || res.statusText);
+        setCounselorAppointments([]);
+        return;
+      }
+      const list = Array.isArray(data) ? data : [];
+      setCounselorAppointments(list.map(normalizeCounselorAppointment));
+    } catch (e) {
+      console.error("Error fetching counselor appointments:", e);
+      setCounselorAppointments([]);
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  }, []);
+
 useEffect(() => {
   fetchPlans();
-}, []);
+  fetchCounselorAppointments();
+}, [fetchCounselorAppointments]);
 
   const [formData, setFormData] = useState({
     appointmentId: "",
@@ -187,6 +136,35 @@ useEffect(() => {
   const activePlans = plans.filter((p) => p.status === "Active").length;
   const completedPlans = plans.filter((p) => p.status === "Completed").length;
   const upcomingFollowUps = plans.filter((p) => p.status !== "Completed").length;
+
+  const appointmentIdsWithPlans = useMemo(() => {
+    const ids = new Set();
+    plans.forEach((p) => {
+      if (p.appointmentId != null && p.appointmentId !== "") {
+        ids.add(String(p.appointmentId));
+      }
+    });
+    return ids;
+  }, [plans]);
+
+  /** Appointments that can be chosen for a *new* plan; editing keeps the plan's appointment visible. */
+  const appointmentsForSelect = useMemo(() => {
+    return counselorAppointments.filter((a) => {
+      const idStr = String(a.id);
+      if (!appointmentIdsWithPlans.has(idStr)) return true;
+      if (isEditing && editingPlanId != null) {
+        const current = plans.find((p) => p.id === editingPlanId);
+        if (current && String(current.appointmentId) === idStr) return true;
+      }
+      return false;
+    });
+  }, [
+    counselorAppointments,
+    appointmentIdsWithPlans,
+    isEditing,
+    editingPlanId,
+    plans,
+  ]);
 
   const handleValidation = () => {
     const newErrors = {};
@@ -231,17 +209,31 @@ useEffect(() => {
   const handleSubmit = () => {
     if (!handleValidation()) return;
 
-    const selectedAppointment = appointments.find(
-      (a) => a.id.toString() === formData.appointmentId
+    const selectedAppointment = counselorAppointments.find(
+      (a) => String(a.id) === formData.appointmentId
     );
 
     if (!selectedAppointment) return;
 
+    if (
+      !isEditing &&
+      appointmentIdsWithPlans.has(String(selectedAppointment.id))
+    ) {
+      alert("This appointment already has a treatment plan.");
+      return;
+    }
+
+    const counsellorId = user?.id;
+    if (!counsellorId) {
+      alert("You must be logged in as a counsellor.");
+      return;
+    }
+
  if (isEditing) {
   const updatedPlan = {
     appointment_id: selectedAppointment.id,
-    counsellor_id: 1,
-    student_id: selectedAppointment.student_id || 2,
+    counsellor_id: counsellorId,
+    student_id: selectedAppointment.studentId,
     title: formData.primaryObjective,
     description: formData.treatmentIdea,
     status: formData.status,
@@ -251,6 +243,7 @@ useEffect(() => {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {}),
     },
     body: JSON.stringify(updatedPlan),
   })
@@ -274,8 +267,8 @@ useEffect(() => {
 } else {
   const newPlan = {
     appointment_id: selectedAppointment.id,
-    counsellor_id: 1,
-    student_id: selectedAppointment.student_id || 2,
+    counsellor_id: counsellorId,
+    student_id: selectedAppointment.studentId,
     title: formData.primaryObjective,
     description: formData.treatmentIdea,
     status: formData.status,
@@ -285,6 +278,7 @@ useEffect(() => {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
+    ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {}),
   },
   body: JSON.stringify(newPlan),
 })
@@ -578,16 +572,25 @@ useEffect(() => {
                   onChange={(e) =>
                     setFormData({ ...formData, appointmentId: e.target.value })
                   }
-                  disabled={isEditing}
+                  disabled={isEditing || appointmentsLoading}
                   className={`w-full p-4 bg-slate-50 border-2 rounded-xl text-sm font-bold outline-none transition-all ${errors.appointmentId
                       ? "border-red-300"
                       : "border-transparent focus:ring-2 focus:ring-blue-100"
                     } ${isEditing ? "opacity-60 cursor-not-allowed" : ""}`}
                 >
-                  <option value="">-- Select Appointment --</option>
-                  {appointments.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.student} - {a.date} - {a.issue}
+                  <option value="">
+                    {appointmentsLoading
+                      ? "Loading appointments…"
+                      : counselorAppointments.length === 0
+                        ? "No appointments available"
+                        : !isEditing && appointmentsForSelect.length === 0
+                          ? "No free appointments (all have a plan)"
+                          : "-- Select Appointment --"}
+                  </option>
+                  {appointmentsForSelect.map((a) => (
+                    <option key={a.id} value={String(a.id)}>
+                      {a.studentName} — {a.date} {a.timeSlot}
+                      {a.mood ? ` · ${a.mood}` : ""} ({a.status})
                     </option>
                   ))}
                 </select>
