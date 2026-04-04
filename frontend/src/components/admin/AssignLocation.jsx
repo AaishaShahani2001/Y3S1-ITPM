@@ -1,83 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { FiMapPin, FiEdit2, FiSearch } from 'react-icons/fi';
-import { FaCheck, FaTimes } from 'react-icons/fa';
+import { FiMapPin, FiEdit2, FiCheck, FiX, FiSearch } from 'react-icons/fi';
 import { toast } from "react-toastify";
-
-
-// Constants — validation limits and seed data (frontend-only)
-const REASON_MAX_LENGTH = 200;
-
-const NOT_ASSIGNED = 'Not Assigned';
-
-const BUILDING_LOCATIONS = [
-  'New Building F1204',
-  'New Building F1207',
-  'New Building F1404',
-  'New Building F502',
-  'Eng Building E404',
-  'Main Building A406',
-  'Main Building A502',
-  'Main Building A202',
-];
-
-const DUMMY_COUNSELORS = [
-  {
-    id: 1,
-    name: 'Dr. Nethmi Perera',
-    specialization: 'Stress Management',
-    email: 'nethmi.perera@mindbridge.local',
-    currentLocation: 'New Building F1204',
-    locationReason: 'Primary campus office',
-  },
-  {
-    id: 2,
-    name: 'Mr. Dilan Fernando',
-    specialization: 'Academic Support',
-    email: 'dilan.fernando@mindbridge.local',
-    currentLocation: NOT_ASSIGNED,
-    locationReason: '',
-  },
-  {
-    id: 3,
-    name: 'Ms. Kavindi Silva',
-    specialization: 'Career Guidance',
-    email: 'kavindi.silva@mindbridge.local',
-    currentLocation: 'New Building F1404',
-    locationReason: '',
-  },
-  {
-    id: 4,
-    name: 'Dr. Kamal Perera',
-    specialization: 'Mental Health Specialist',
-    email: 'kamal.perera@mindbridge.local',
-    currentLocation: 'Eng Building E404',
-    locationReason: 'Shared rotation',
-  },
-  {
-    id: 5,
-    name: 'Ms. Aruni Jay',
-    specialization: 'Emotional Regulation Expert',
-    email: 'aruni.jay@mindbridge.local',
-    currentLocation: 'Main Building A502',
-    locationReason: 'Hybrid schedule',
-  },
-];
-
-
-// Helpers — location rules
-function isLocationTakenByOther(counselorsList, location, excludeId) {
-  const loc = (location || '').trim();
-  if (!loc || loc === NOT_ASSIGNED) return false;
-  return counselorsList.some(
-    (c) => c.id !== excludeId && (c.currentLocation || '').trim() === loc
-  );
-}
-
-function isAllowedLocation(value) {
-  const v = (value || '').trim();
-  if (v === NOT_ASSIGNED) return true;
-  return BUILDING_LOCATIONS.includes(v);
-}
 
 const AssignLocation = () => {
   const [counselors, setCounselors] = useState([]);
@@ -87,78 +10,101 @@ const AssignLocation = () => {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedReason, setSelectedReason] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const user = JSON.parse(localStorage.getItem("user"));
 
-  
-  // Effects — load dummy counselor list
+  const availableLocations = [
+    'Not Assigned',
+    'New Building F1305',
+    'New Building G1207',
+    'Main Building A412',
+    'Main Building A502',
+    'Main Building B502',
+    'Eng Building E305',
+    'Bussiness Building B303',
+  ];
+
+  /** Rooms already taken by another counselor (one room per counselor). */
+  const locationsTakenByOthers = useMemo(() => {
+    const taken = new Set();
+    for (const c of counselors) {
+      if (c.id === editingId) continue;
+      if (c.currentLocation && c.currentLocation !== "Not Assigned") {
+        taken.add(c.currentLocation);
+      }
+    }
+    return taken;
+  }, [counselors, editingId]);
+
   useEffect(() => {
     const loadCounselors = async () => {
+      if (!user?.token) {
+        setCounselors([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        await new Promise((r) => setTimeout(r, 400));
-        setCounselors(DUMMY_COUNSELORS.map((c) => ({ ...c })));
+        const res = await fetch("http://localhost:3000/api/counsellor/location/all", {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        if (!res.ok) {
+          toast.error("Failed to load counselors");
+          setCounselors([]);
+          return;
+        }
+        const data = await res.json();
+        const mapped = (Array.isArray(data) ? data : []).map((c) => ({
+          id: c.userId,
+          name: c.fullName,
+          specialization: c.specialization,
+          email: c.email,
+          currentLocation: c.workplace || 'Not Assigned',
+          locationReason: c.locationReason || "",
+        }));
+        setCounselors(mapped);
       } catch (err) {
         console.error("Failed to load counselors", err);
         toast.error("Failed to load counselors");
-        setCounselors([]);
       } finally {
         setLoading(false);
       }
     };
     loadCounselors();
-  }, []);
+  }, [user?.token]);
 
-
-  // Handlers — edit / save / cancel
   const handleEditClick = (counselor) => {
     setEditingId(counselor.id);
-    setSelectedLocation(
-      counselor.currentLocation === NOT_ASSIGNED ? NOT_ASSIGNED : counselor.currentLocation
-    );
-    setSelectedReason(counselor.locationReason || '');
+    const loc = counselor.currentLocation || "Not Assigned";
+    setSelectedLocation(availableLocations.includes(loc) ? loc : "Not Assigned");
+    setSelectedReason(counselor.locationReason || "");
   };
 
   const handleSaveLocation = async (id) => {
-    const trimmedLocation = (selectedLocation || '').trim();
-    const trimmedReason = (selectedReason || '').trim();
-
-    if (!trimmedLocation) {
-      toast.error("Please select a location.");
-      return;
-    }
-    if (!isAllowedLocation(trimmedLocation)) {
-      toast.error("Please choose a valid location from the list.");
-      return;
-    }
-    if (trimmedReason.length > REASON_MAX_LENGTH) {
-      toast.error(`Note must be ${REASON_MAX_LENGTH} characters or less.`);
-      return;
-    }
-
-    // Same building cannot be assigned to two different counselors
-    if (isLocationTakenByOther(counselors, trimmedLocation, id)) {
-      const other = counselors.find(
-        (c) => c.id !== id && (c.currentLocation || '').trim() === trimmedLocation
-      );
-      toast.error(
-        other
-          ? `This location is already assigned to ${other.name}. Choose another location.`
-          : "This location is already assigned to another counselor."
-      );
-      return;
-    }
-
+    if (!user?.token) return;
     try {
       setSavingId(id);
-      await new Promise((r) => setTimeout(r, 350));
+      const res = await fetch(`http://localhost:3000/api/counsellor/location/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          workplace: selectedLocation,
+          locationReason: selectedReason,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Failed to assign location");
+        return;
+      }
       setCounselors((prev) =>
         prev.map((c) =>
-          c.id === id
-            ? { ...c, currentLocation: trimmedLocation, locationReason: trimmedReason }
-            : c
+          c.id === id ? { ...c, currentLocation: selectedLocation, locationReason: selectedReason } : c
         )
       );
       setEditingId(null);
-      setSelectedReason('');
       toast.success("Location assigned successfully");
     } catch (err) {
       console.error("Failed to save location", err);
@@ -172,24 +118,18 @@ const AssignLocation = () => {
     setEditingId(null);
   };
 
-  
-  // Derived — search filter
-  const filteredCounselors = useMemo(() => counselors.filter(c => {
-    const q = searchTerm.toLowerCase();
-    return (
-      (c.name || '').toLowerCase().includes(q) ||
-      (c.specialization || '').toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q)
-    );
-  }), [counselors, searchTerm]);
+  const filteredCounselors = useMemo(() => counselors.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    c.specialization.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [counselors, searchTerm]);
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-      {/* ---------- Header & search ---------- */}
+      {/* Header & Search */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Assign Locations</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage physical and virtual counseling locations for all active counselors.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage physical counseling locations for all active counselors.</p>
         </div>
         <div className="relative w-full md:w-72">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -209,15 +149,12 @@ const AssignLocation = () => {
         <div className="py-12 text-center text-slate-500 text-sm font-medium">Loading counselors...</div>
       ) : (
         <>
-      {/* ---------- Counselor cards (grid) ---------- */}
+      {/* Grid view layout instead of table for a more modern card feel */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCounselors.map((counselor) => (
-          <div
-            key={counselor.id}
-            className="group relative min-w-0 overflow-visible rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
-          >
-            {/* Status strip: unassigned vs assigned */}
-            <div className={`absolute top-0 left-0 w-full h-1 ${counselor.currentLocation === NOT_ASSIGNED ? 'bg-amber-400' : 'bg-indigo-500'}`}></div>
+          <div key={counselor.id} className="group bg-white rounded-xl border border-slate-200 p-5 hover:border-indigo-200 hover:shadow-md transition-all duration-200 relative overflow-hidden">
+            {/* Top color bar */}
+            <div className={`absolute top-0 left-0 w-full h-1 ${counselor.currentLocation === 'Not Assigned' ? 'bg-amber-400' : 'bg-indigo-500'}`}></div>
             
             <div className="flex items-start justify-between mb-4 mt-2">
               <div className="flex items-center gap-3">
@@ -242,81 +179,58 @@ const AssignLocation = () => {
               
               {editingId === counselor.id ? (
                 <div className="flex flex-col gap-2">
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                    {/* Location select: buildings taken by others are disabled */}
+                  <div className="flex items-center gap-2">
                     <select 
                       value={selectedLocation}
                       onChange={(e) => setSelectedLocation(e.target.value)}
-                      className="min-w-0 w-full flex-1 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 sm:min-h-11"
+                      className="flex-1 bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
                     >
-                      <option value={NOT_ASSIGNED}>{NOT_ASSIGNED}</option>
-                      {BUILDING_LOCATIONS.map((loc) => {
-                        const takenByOther = counselors.find(
-                          (c) =>
-                            c.id !== counselor.id &&
-                            (c.currentLocation || '').trim() === loc
-                        );
+                      {availableLocations.map((loc) => {
+                        const blocked =
+                          loc !== "Not Assigned" &&
+                          locationsTakenByOthers.has(loc) &&
+                          loc !== counselor.currentLocation;
                         return (
-                          <option
-                            key={loc}
-                            value={loc}
-                            disabled={Boolean(takenByOther)}
-                          >
+                          <option key={loc} value={loc} disabled={blocked}>
                             {loc}
-                            {takenByOther ? ` (assigned to ${takenByOther.name})` : ''}
+                            {blocked ? " (assigned)" : ""}
                           </option>
                         );
                       })}
                     </select>
-                    <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => handleSaveLocation(counselor.id)}
-                        disabled={savingId === counselor.id}
-                        className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        title="Save"
-                        aria-label="Save location"
-                      >
-                        {savingId === counselor.id ? (
-                          <span className="text-sm font-black leading-none">…</span>
-                        ) : (
-                          <FaCheck className="h-4 w-4 shrink-0" aria-hidden />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-600 hover:text-white"
-                        title="Cancel"
-                        aria-label="Cancel editing"
-                      >
-                        <FaTimes className="h-4 w-4 shrink-0" aria-hidden />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => handleSaveLocation(counselor.id)}
+                      disabled={savingId === counselor.id}
+                      className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors"
+                      title="Save"
+                    >
+                      {savingId === counselor.id ? "..." : <FiCheck />}
+                    </button>
+                    <button 
+                      onClick={handleCancelEdit}
+                      className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg transition-colors"
+                      title="Cancel"
+                    >
+                      <FiX />
+                    </button>
                   </div>
-                  {/* Optional note; max length enforced below */}
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Reason/Note (optional)"
-                      value={selectedReason}
-                      onChange={(e) => setSelectedReason(e.target.value.slice(0, REASON_MAX_LENGTH))}
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
-                    />
-                    <p className="mt-1 text-[10px] text-slate-400 text-right">
-                      {selectedReason.length}/{REASON_MAX_LENGTH}
-                    </p>
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Reason/Note (optional)"
+                    value={selectedReason}
+                    onChange={(e) => setSelectedReason(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
+                  />
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-1">
                     <div className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg w-fit ${
-                      counselor.currentLocation === NOT_ASSIGNED
+                      counselor.currentLocation === 'Not Assigned' 
                         ? 'bg-amber-50 text-amber-700' 
                         : 'bg-emerald-50 text-emerald-700'
                     }`}>
-                      <FiMapPin className={counselor.currentLocation === NOT_ASSIGNED ? 'animate-pulse' : ''} />
+                      <FiMapPin className={counselor.currentLocation === 'Not Assigned' ? 'animate-pulse' : ''} />
                       {counselor.currentLocation}
                     </div>
                     {counselor.locationReason && (
@@ -337,7 +251,6 @@ const AssignLocation = () => {
         ))}
       </div>
 
-      {/* ---------- Empty search state ---------- */}
       {filteredCounselors.length === 0 && (
         <div className="py-12 text-center flex flex-col items-center justify-center">
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">

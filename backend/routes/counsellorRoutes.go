@@ -9,6 +9,8 @@ import (
 
 func CounsellorRoutes(r *gin.Engine) {
 
+	// =========== SADHUSHAN'S ROUTES =========== //
+
 	// PROTECTED route - must be logged in
 	r.POST("/api/counsellor/apply", middleware.RequireAuth, controllers.ApplyCounsellor)
 
@@ -24,6 +26,11 @@ func CounsellorRoutes(r *gin.Engine) {
 
 	// PROTECTED route - must be logged in to update profile
 	r.PUT("/api/counsellor/profile/:userId", controllers.UpdateCounsellorProfile)
-	
+
+	// ================ AAISHA'S ROUTES ================ //
+
+	r.GET("/api/counsellor/location/all", middleware.RequireAuth, controllers.GetCounsellorsForLocationAssignment)
+	r.GET("/api/counsellor/location/me", middleware.RequireAuth, controllers.GetMyAssignedLocation)
+	r.PUT("/api/counsellor/location/:userId", middleware.RequireAuth, controllers.AssignCounsellorLocation)
 
 }
