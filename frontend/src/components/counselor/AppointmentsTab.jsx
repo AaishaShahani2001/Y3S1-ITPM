@@ -1,91 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaExclamationCircle, FaFrown, FaCheckCircle, FaCalendarAlt, FaEye, FaTimes, FaFlag } from "react-icons/fa";
+import { FaExclamationCircle, FaFrown, FaCheckCircle, FaCalendarAlt, FaEye, FaTimes, FaFlag, FaMapPin } from "react-icons/fa";
 import { toast } from "react-toastify";
 import ApproveModel from "../ApproveModel";
 import ConfirmationModel from "../ConfirmationModel";
 
-const DUMMY_APPOINTMENTS = [
-    {
-        id: 101,
-        bookingId: "MB-CA-2001",
-        studentId: 501,
-        studentName: "Liam Santos",
-        studentEmail: "liam.santos@student.local",
-        date: "2026-03-26",
-        timeSlot: "09:00 AM - 10:00 AM",
-        status: "Pending",
-        urgency: 8,
-        mood: "anxious",
-        age: 20,
-        contactNumber: "0917123456",
-        guardianPhoneNumber: "0917987654",
-        medicalNotes: "Feels anxious before major exams.",
-        description: "Needs stress management techniques for exam week.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-    },
-    {
-        id: 102,
-        bookingId: "MB-CA-2002",
-        studentId: 502,
-        studentName: "Maya Perera",
-        studentEmail: "maya.perera@student.local",
-        date: "2026-03-27",
-        timeSlot: "01:00 PM - 02:00 PM",
-        status: "Confirmed",
-        urgency: 6,
-        mood: "stressed",
-        age: 21,
-        contactNumber: "0918234567",
-        guardianPhoneNumber: "0918345678",
-        medicalNotes: "Reports recurring stress and poor sleep.",
-        description: "Follow-up session after first counseling plan.",
-        studentCancelNote: "I have a conflict with a required class.",
-        counselorCancelNote: "",
-        reportPath: "",
-    },
-    {
-        id: 103,
-        bookingId: "MB-CA-2003",
-        studentId: 501,
-        studentName: "Liam Santos",
-        studentEmail: "liam.santos@student.local",
-        date: "2026-03-21",
-        timeSlot: "10:00 AM - 11:00 AM",
-        status: "Completed",
-        urgency: 4,
-        mood: "better",
-        age: 20,
-        contactNumber: "0917123456",
-        guardianPhoneNumber: "0917987654",
-        medicalNotes: "Improved coping after breathing exercises.",
-        description: "Previous session notes for continuity.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "",
-    },
-    {
-        id: 104,
-        bookingId: "MB-CA-2004",
-        studentId: 503,
-        studentName: "Noah Reyes",
-        studentEmail: "noah.reyes@student.local",
-        date: "2026-03-28",
-        timeSlot: "03:00 PM - 04:00 PM",
-        status: "Confirmed",
-        urgency: 9,
-        mood: "depressed",
-        age: 19,
-        contactNumber: "0918456789",
-        guardianPhoneNumber: "0918567890",
-        medicalNotes: "Reports low mood and fatigue for two weeks.",
-        description: "High-priority check-in requested by student.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "",
-    },
-];
+/** Matches admin Assign Location building list; shown at top of this tab. */
+const COUNSELOR_ASSIGN_LOCATION = {
+    assignLocation: "New Building F1204",
+    locationNote:
+        "Admin-assigned counseling room for this semester. If you temporarily relocate a session, note it in your availability and tell the student at least 24 hours ahead.",
+};
 
 export default function AppointmentsTab() {
     // Top-level filters and UI states.
@@ -100,12 +24,27 @@ export default function AppointmentsTab() {
     const [approvedCancellationIds, setApprovedCancellationIds] = useState([]);
     const [cancelModalAppt, setCancelModalAppt] = useState(null);
     const [cancelNote, setCancelNote] = useState("");
+    const user = JSON.parse(localStorage.getItem("user"));
 
-    // Load counselor appointments from local dummy source.
+    // Load counselor appointments from backend.
     const fetchAppointments = async () => {
+        if (!user?.token) {
+            setAppointments([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            setAppointments(DUMMY_APPOINTMENTS);
+            const res = await fetch("http://localhost:3000/api/appointments/counselor", {
+                headers: { Authorization: `Bearer ${user.token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAppointments(Array.isArray(data) ? data : []);
+            } else {
+                setAppointments([]);
+                toast.error("Failed to load appointments");
+            }
         } catch (err) {
             console.error("Failed to fetch appointments", err);
             toast.error("Failed to load appointments");
@@ -117,12 +56,25 @@ export default function AppointmentsTab() {
 
     useEffect(() => {
         fetchAppointments();
-    }, []);
+    }, [user?.token]);
+
+    // Generic status update request helper.
+    const updateAppointmentStatus = async (appointmentId, status) => {
+        const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/status`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({ status }),
+        });
+        return res;
+    };
 
     // Handles status flow: Pending -> Confirmed -> Completed.
     const handleStatusUpdate = async (appointment) => {
         const current = appointment.status || "";
-        if (current === "Completed") return;
+        if (!user?.token || current === "Completed") return;
         const appointmentId = appointment.id || appointment.ID;
         const nextStatus = current === "Pending" ? "Confirmed" : current === "Confirmed" ? "Completed" : "";
         if (!nextStatus) return;
@@ -135,13 +87,11 @@ export default function AppointmentsTab() {
                 if (!ok) return;
             }
 
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId ? { ...appt, status: nextStatus } : appt
-                )
-            );
-            if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
-                setSelectedAppt((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+            const res = await updateAppointmentStatus(appointmentId, nextStatus);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || `Failed to mark as ${nextStatus.toLowerCase()}`);
+                return;
             }
 
             toast.success(
@@ -149,6 +99,7 @@ export default function AppointmentsTab() {
                     ? "Appointment marked as confirmed"
                     : "Appointment marked as completed"
             );
+            await fetchAppointments();
         } catch (err) {
             console.error("Failed to update appointment status", err);
             toast.error("Something went wrong");
@@ -159,19 +110,20 @@ export default function AppointmentsTab() {
 
     const handleApproveCancellation = async (appointment) => {
         const appointmentId = appointment.id || appointment.ID;
-        if (!appointmentId) return;
+        if (!appointmentId || !user?.token) return;
 
         try {
             setUpdatingId(appointmentId);
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId
-                        ? { ...appt, status: "Cancelled" }
-                        : appt
-                )
-            );
-            if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
-                setSelectedAppt((prev) => (prev ? { ...prev, status: "Cancelled" } : prev));
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/cancellation/approve`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${user.token}`,
+                },
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to approve cancellation");
+                return;
             }
             toast.success("Cancellation approved and slot released");
             setApprovedCancellationIds((prev) => (prev.includes(appointmentId) ? prev : [...prev, appointmentId]));
@@ -187,23 +139,30 @@ export default function AppointmentsTab() {
     const handleCancelByCounselor = async () => {
         if (!cancelModalAppt) return;
         const appointmentId = cancelModalAppt.id || cancelModalAppt.ID;
-        if (!appointmentId) return;
+        if (!appointmentId || !user?.token) return;
         if (!cancelNote.trim()) {
             toast.error("Please add a cancellation note");
             return;
         }
         try {
             setUpdatingId(appointmentId);
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId
-                        ? { ...appt, status: "Cancelled", counselorCancelNote: cancelNote.trim() }
-                        : appt
-                )
-            );
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/counselor-cancel`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${user.token}`,
+                },
+                body: JSON.stringify({ note: cancelNote.trim() }),
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to cancel appointment");
+                return;
+            }
             toast.success("Appointment cancelled with note");
             setCancelModalAppt(null);
             setCancelNote("");
+            await fetchAppointments();
             if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
                 setSelectedAppt({ ...selectedAppt, status: "Cancelled", counselorCancelNote: cancelNote.trim() });
             }
@@ -221,6 +180,13 @@ export default function AppointmentsTab() {
         const [y, m, d] = isoDate.split("-");
         const date = new Date(y, (m || 1) - 1, d || 1);
         return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
+
+    const getReportUrl = (reportPath) => {
+        if (!reportPath) return "";
+        if (/^https?:\/\//i.test(reportPath)) return reportPath;
+        const normalizedPath = reportPath.startsWith("/") ? reportPath : `/${reportPath}`;
+        return `${window.location.origin}${normalizedPath}`;
     };
 
     // Maps numeric urgency to UI label.
@@ -307,6 +273,34 @@ export default function AppointmentsTab() {
 
     return (
         <div className="animate-fadeIn space-y-8">
+            {/* Counselor assigned location + admin note (dummy) */}
+            <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-linear-to-br from-indigo-50 via-white to-slate-50 p-5 shadow-sm md:p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex min-w-0 gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
+                            <FaMapPin className="text-xl" aria-hidden />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                                Assigned location
+                            </p>
+                            <p className="mt-1 wrap-break-words text-lg font-black tracking-tight text-slate-900">
+                                {COUNSELOR_ASSIGN_LOCATION.assignLocation}
+                            </p>
+                            <p className="mt-2 text-xs font-medium text-slate-500">
+                                Sessions default to this room unless an appointment specifies otherwise below.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-5 rounded-xl border border-slate-100 bg-white/90 p-4 shadow-inner">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Note</p>
+                    <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">
+                        {COUNSELOR_ASSIGN_LOCATION.locationNote}
+                    </p>
+                </div>
+            </div>
+
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h2 className="text-2xl font-black tracking-tight">Appointments Queue</h2>
                 <div className="flex bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
@@ -511,6 +505,28 @@ export default function AppointmentsTab() {
                                     </div>
                                 </div>
 
+                                {/* Assign location & session note (dummy) */}
+                                <div>
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Assign location</h4>
+                                    <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-2">
+                                        <div>
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Room / venue</p>
+                                            <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                                                <FaMapPin className="shrink-0 text-indigo-500" />
+                                                {selectedAppt.assignLocation || COUNSELOR_ASSIGN_LOCATION.assignLocation}
+                                            </p>
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Note</p>
+                                            <p className="text-sm leading-relaxed text-slate-600">
+                                                {selectedAppt.locationNote
+                                                    ? selectedAppt.locationNote
+                                                    : "No extra location note for this booking."}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Medical Info & Description */}
                                 <div>
                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Medical Info & Description</h4>
@@ -603,7 +619,7 @@ export default function AppointmentsTab() {
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                     {selectedAppt.reportPath ? (
                                         <a
-                                            href={selectedAppt.reportPath}
+                                            href={`http://localhost:3000/${selectedAppt.reportPath}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex flex-col gap-1 group"

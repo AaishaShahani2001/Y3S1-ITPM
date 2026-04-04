@@ -4,7 +4,7 @@ import {
 } from 'react-icons/fi';
 
 import EventManagement from "../../pages/admin/EventManagement";
-
+import AssignLocation from '../../components/admin/AssignLocation';
 import AdminOverview from '../../components/admin/AdminOverview';
 import AllBookings from '../../components/admin/AllBookings';
 import DoctorApprovals from '../../components/admin/DoctorApprovals';
@@ -17,6 +17,7 @@ const AdminDashboard = () => {
     { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
     { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
     { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
+    { name: 'Assign Locations', icon: <FiUserCheck />, component: <AssignLocation /> },
     { name: 'Event Management', icon: <FiCalendar />, component: <EventManagement /> },
   ];
 
@@ -94,6 +95,7 @@ const AdminDashboard = () => {
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth p-6 md:p-8">
           <div className="mx-auto w-full max-w-7xl pb-10">{renderContent()}</div>
         </div>
+
       </main>
     </div>
   );

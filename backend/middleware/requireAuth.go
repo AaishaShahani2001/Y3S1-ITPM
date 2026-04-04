@@ -17,7 +17,12 @@ func RequireAuth(c *gin.Context) {
 
 	// Get token from Authorization header
 	authHeader := c.GetHeader("Authorization")
-	fmt.Println("AUTH HEADER:", authHeader)
+	if authHeader == "" || len(authHeader) < 8 {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	tokenString := authHeader[7:]
+	//fmt.Println("AUTH HEADER:", authHeader)
 
 	if authHeader == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
@@ -25,7 +30,7 @@ func RequireAuth(c *gin.Context) {
 	}
 
 	// remove "Bearer "
-	tokenString := authHeader[7:]
+	//tokenString := authHeader[7:]
 
 	// Parse JWT
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
