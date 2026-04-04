@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -22,12 +23,13 @@ func AddAvailability(c *gin.Context) {
 		return
 	}
 
-	// 1. CHECK DISTINCT DATE COUNT
+	// 1. CHECK DISTINCT UPCOMING DATE COUNT
 	var dateCount int64
+	today := time.Now().Format("2006-01-02")
 
 	initializers.DB.
 		Model(&models.CounsellorAvailability{}).
-		Where("counsellor_id = ?", slot.CounsellorID).
+		Where("counsellor_id = ? AND date >= ?", slot.CounsellorID, today).
 		Distinct("date").
 		Count(&dateCount)
 
@@ -41,9 +43,9 @@ func AddAvailability(c *gin.Context) {
 	// Only treat as NEW date if record not found
 	isNewDate := errors.Is(errDate, gorm.ErrRecordNotFound)
 
-	if isNewDate && dateCount >= 4 {
+	if isNewDate && slot.Date >= today && dateCount >= 4 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "You can only add availability for 4 different dates",
+			"error": "You can only add availability for 4 different upcoming dates",
 		})
 		return
 	}
