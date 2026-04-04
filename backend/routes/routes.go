@@ -9,4 +9,6 @@ func SetupRoutes(r *gin.Engine) {
 	CounsellorRoutes(r)
 	AdminRoutes(r)
 	AvailabilityRoutes(r)
+	AppointmentRoutes(r)
+	MoodRoutes(r)
 }
