@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaUserMd } from "react-icons/fa";
 import { toast } from "react-toastify";
+import ConfirmationModel from "../ConfirmationModel";
 
 const DUMMY_WAITLIST = [
     {
@@ -47,7 +47,7 @@ export default function MyWaitListTab() {
     const [loading, setLoading] = useState(true);
     const [leavingId, setLeavingId] = useState(null);
     const [nowMs, setNowMs] = useState(Date.now());
-    const navigate = useNavigate();
+    const [bookConfirmEntry, setBookConfirmEntry] = useState(null);
 
     const loadWaitlist = async () => {
         setLoading(true);
@@ -93,7 +93,7 @@ export default function MyWaitListTab() {
         }
     };
 
-    const goBookNow = (entry) => {
+    const handleBookNowClick = (entry) => {
         const statusLower = (entry.status || "").toLowerCase();
         if (statusLower !== "notified") {
             toast.error("Book Now is only available for notified entries.");
@@ -109,8 +109,23 @@ export default function MyWaitListTab() {
             toast.error("Counselor details are missing.");
             return;
         }
-        toast.success("Redirecting to booking page...");
-        navigate(`/book-appointment/${counselorId}`);
+        setBookConfirmEntry(entry);
+    };
+
+    const handleConfirmBooking = () => {
+        if (!bookConfirmEntry) return;
+        const entryId = bookConfirmEntry.id || bookConfirmEntry.ID;
+        setEntries((prev) =>
+            prev.map((e) =>
+                (e.id || e.ID) === entryId ? { ...e, status: "Booked" } : e
+            )
+        );
+        toast.success("Booked successfully.");
+        setBookConfirmEntry(null);
+    };
+
+    const handleCloseBookModal = () => {
+        setBookConfirmEntry(null);
     };
 
     const statusClass = (status) => {
@@ -209,7 +224,7 @@ export default function MyWaitListTab() {
 
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <button
-                                            onClick={() => goBookNow(entry)}
+                                            onClick={() => handleBookNowClick(entry)}
                                             disabled={!canBookNow}
                                             className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
@@ -229,6 +244,29 @@ export default function MyWaitListTab() {
                     })}
                 </div>
             )}
+
+            <ConfirmationModel
+                isOpen={Boolean(bookConfirmEntry)}
+                title="Confirm booking"
+                message={
+                    bookConfirmEntry
+                        ? `You are about to book this waitlist slot with ${bookConfirmEntry.counselorName || "your counselor"} on ${bookConfirmEntry.date || "—"} at ${bookConfirmEntry.timeSlot || "—"}.`
+                        : ""
+                }
+                confirmText="Confirm booking"
+                cancelText="Cancel"
+                onConfirm={handleConfirmBooking}
+                onCancel={handleCloseBookModal}
+            >
+                {bookConfirmEntry && (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                        <p className="font-bold text-slate-800">{bookConfirmEntry.specialization || "Counseling"}</p>
+                        <p className="mt-1 text-slate-500">
+                            Queue position #{bookConfirmEntry.queuePosition || 1}
+                        </p>
+                    </div>
+                )}
+            </ConfirmationModel>
         </div>
     );
 }

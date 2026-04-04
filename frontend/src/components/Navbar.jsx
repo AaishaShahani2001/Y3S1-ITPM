@@ -51,7 +51,8 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-999 bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-100">
+    <nav className="sticky top-0 z-999 bg-white/70 backdrop-blur-3xl border-b border-white/40 shadow-[0_1px_15px_rgba(37,99,235,0.05)]">
+
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
 
         {/* LOGO */}
@@ -77,7 +78,8 @@ export default function Navbar() {
               Services <FaChevronDown className={`text-[10px] transition-transform duration-300 ${isServicesOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <div className={`absolute top-full left-0 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 mt-0 transition-all duration-300 ${isServicesOpen ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-2 invisible'}`}>
+            <div className={`absolute top-full left-0 w-72 bg-white/80 backdrop-blur-3xl rounded-4xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-white/60 p-3 mt-2 transition-all duration-500 transform ${isServicesOpen ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-4 invisible'}`}>
+
               <Link
                 to="/book-appointment"
                 className="flex items-center gap-4 p-4 hover:bg-blue-50 rounded-xl transition-all group/item"
@@ -103,6 +105,18 @@ export default function Navbar() {
                   <p className="text-slate-500 text-[10px] normal-case tracking-normal font-medium">Explore all amenities</p>
                 </div>
               </Link>
+
+                 {/* Event FEATURE */}
+              <Link to="/events" className="flex items-center gap-4 p-4 hover:bg-green-50 rounded-xl">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
+                  <FaUsers />
+                </div>
+                <div>
+                  <p className="text-slate-900 font-bold normal-case tracking-normal">Wellbeing Events</p>
+                  <p className="text-slate-500 text-[10px] normal-case tracking-normal font-medium">Register for events</p>
+                </div>
+              </Link>
+
             </div>
           </div>
 
@@ -127,9 +141,10 @@ export default function Navbar() {
           ) : (
             <Link
               to="/auth"
-              className="bg-blue-600 text-white px-8 py-3 rounded-full hover:bg-blue-700 transition shadow-xl shadow-blue-200 font-black text-xs uppercase tracking-widest"
+              className="relative group overflow-hidden bg-linear-to-r from-blue-600 to-indigo-600 text-white px-10 py-3.5 rounded-full hover:shadow-2xl hover:shadow-blue-500/40 transition-all font-black text-xs uppercase tracking-[0.2em]"
             >
-              Login
+              <div className="absolute inset-0 bg-white/20 translate-y-full hover:translate-y-0 transition-transform duration-500" />
+              <span className="relative z-10">Login</span>
             </Link>
           )}
         </div>
@@ -158,6 +173,10 @@ export default function Navbar() {
             </Link>
             <Link to="/services" className="p-4 hover:bg-slate-50 flex items-center justify-between rounded-xl" onClick={() => setIsOpen(false)}>
               Other Services <FaClipboardList />
+            </Link>
+            {/* Event FEATURE */}
+            <Link to="/events" onClick={() => setIsOpen(false)}>
+              Wellbeing Events
             </Link>
           </div>
 
