@@ -41,23 +41,26 @@ func CreateTreatmentPlan(c *gin.Context) {
 	c.JSON(http.StatusOK, plan)
 }
 
-// Get all Treatment Plans
+// GetTreatmentPlans returns treatment plans for the logged-in counselor.
+// Admins receive all plans; counselors only their own; students are not allowed.
 func GetTreatmentPlans(c *gin.Context) {
-	type TreatmentPlanResponse struct {
-		ID             uint   `json:"id"`
-		AppointmentID  uint   `json:"appointment_id"`
-		CounsellorID   uint   `json:"counsellor_id"`
-		StudentID      uint   `json:"student_id"`
-		Title          string `json:"title"`
-		Description    string `json:"description"`
-		Status         string `json:"status"`
-		StudentName    string `json:"student_name"`
-		CounsellorName string `json:"counsellor_name"`
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	currentUser, ok := userVal.(models.User)
+	if !ok || currentUser.ID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
 	}
 
-	var plans []TreatmentPlanResponse
+	if currentUser.Role == "student" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
 
-	err := initializers.DB.Raw(`
+	baseSQL := `
 		SELECT 
 			tp.id,
 			tp.appointment_id,
@@ -67,12 +70,25 @@ func GetTreatmentPlans(c *gin.Context) {
 			tp.description,
 			tp.status,
 			student_users.name AS student_name,
-			counsellor_users.name AS counsellor_name
+			counsellor_users.name AS counsellor_name,
+			tp.updated_at
 		FROM treatment_plans tp
 		LEFT JOIN users AS student_users ON student_users.id = tp.student_id
 		LEFT JOIN users AS counsellor_users ON counsellor_users.id = tp.counsellor_id
-		ORDER BY tp.id DESC
-	`).Scan(&plans).Error
+	`
+
+	var plans []treatmentPlanListResponse
+	var err error
+
+	switch currentUser.Role {
+	case "admin":
+		err = initializers.DB.Raw(baseSQL + ` ORDER BY tp.id DESC`).Scan(&plans).Error
+	case "counselor":
+		err = initializers.DB.Raw(baseSQL+` WHERE tp.counsellor_id = ? ORDER BY tp.id DESC`, currentUser.ID).Scan(&plans).Error
+	default:
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch treatment plans"})

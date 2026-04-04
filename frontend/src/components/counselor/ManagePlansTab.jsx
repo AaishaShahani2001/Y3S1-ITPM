@@ -50,7 +50,10 @@ export default function ManagePlansTab() {
   const [expandedStepId, setExpandedStepId] = useState(null);
 
 const fetchPlans = () => {
-  fetch(`${API_BASE_URL}/api/treatment-plans`)
+  const u = JSON.parse(localStorage.getItem("user") || "null");
+  fetch(`${API_BASE_URL}/api/treatment-plans`, {
+    headers: u?.token ? { Authorization: `Bearer ${u.token}` } : {},
+  })
     .then(async (res) => {
       const data = await res.json();
       if (!res.ok) {
