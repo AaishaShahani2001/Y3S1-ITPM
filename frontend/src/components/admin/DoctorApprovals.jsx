@@ -330,7 +330,7 @@ const DoctorApprovals = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {selectedDoctor.nicFile ? (
                                             <a
-                                                href={`http://localhost:8080/${selectedDoctor.nicFile}`}
+                                                href={`http://localhost:3000/${selectedDoctor.nicFile}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center p-4 transition-all bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md group"
@@ -354,7 +354,7 @@ const DoctorApprovals = () => {
 
                                         {selectedDoctor.certificateFile ? (
                                             <a
-                                                href={`http://localhost:8080/${selectedDoctor.certificateFile}`}
+                                                href={`http://localhost:3000/${selectedDoctor.certificateFile}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center p-4 transition-all bg-white border border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md group"
