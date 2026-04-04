@@ -20,6 +20,7 @@ func main() {
 
 	// PROXY WARNING
 	//r.SetTrustedProxies([]string{"127.0.0.1"})
+	r.Static("/uploads", "./uploads")
 
 	// CORS CONFIGURATION
 	r.Use(cors.New(cors.Config{
@@ -32,6 +33,8 @@ func main() {
 	}))
 
 	routes.SetupRoutes(r)
+	routes.EventRoutes(r)
+
 
 	r.Run()
 }

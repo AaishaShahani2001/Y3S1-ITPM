@@ -1,16 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  FaUserCircle, FaCalendarPlus, FaClipboardList,
+  FaUserCircle, FaCalendarPlus, FaClipboardList, FaCalendar,
   FaStethoscope, FaChartLine, FaSignOutAlt, FaBell, FaSearch
 } from "react-icons/fa";
-// import OverviewTab from "../../components/counselor/OverviewTab";
-// import ProfileTab from "../../components/counselor/ProfileTab";
-// import AvailabilityTab from "../../components/counselor/AvailabilityTab";
-// import AppointmentsTab from "../../components/counselor/AppointmentsTab";
-// import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+
+const API_BASE = "http://localhost:3000";
+import OverviewTab from "../../components/counselor/OverviewTab";
+import Calendar from "../../components/counselor/Calendar";
+import ProfileTab from "../../components/counselor/ProfileTab";
+import AvailabilityTab from "../../components/counselor/AvailabilityTab";
+import AppointmentsTab from "../../components/counselor/AppointmentsTab";
+import ManagePlansTab from "../../components/counselor/ManagePlansTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaChartLine /> },
+  { id: "calendar", label: "Calendar", icon: <FaCalendar /> },
   { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
   { id: "availability", label: "Manage Availability", icon: <FaCalendarPlus /> },
   { id: "appointments", label: "Student Appointments", icon: <FaClipboardList /> },
@@ -19,6 +23,47 @@ const TABS = [
 
 export default function CounselorDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const user = (() => {
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const [headerProfile, setHeaderProfile] = useState(() => ({
+    fullName: user?.name || "",
+    specialization: "",
+    profileImage: "",
+  }));
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/counsellor/profile/${user.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setHeaderProfile({
+          fullName: data.fullName || user.name || "Counselor",
+          specialization: data.specialization || "",
+          profileImage: data.profileImage || "",
+        });
+      } catch {
+        /* keep localStorage name */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.name]);
+
+  const avatarUrl = headerProfile.profileImage
+    ? `${API_BASE}/${headerProfile.profileImage}`
+    : null;
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
@@ -75,25 +120,39 @@ export default function CounselorDashboard() {
             </button>
             <div className="h-8 w-px bg-slate-100 mx-1 hidden md:block"></div>
             <div className="flex items-center gap-3">
-              <div className="text-right hidden md:block">
-                <p className="text-xs font-black tracking-tight">Dr. Nethmi Perera</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Clinical Counselor</p>
+              <div className="text-right hidden md:block min-w-0">
+                <p className="text-xs font-black tracking-tight truncate max-w-50">
+                  {headerProfile.fullName || user?.name || "Counselor"}
+                </p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-50">
+                  {headerProfile.specialization || "Counselor"}
+                </p>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-slate-200 overflow-hidden ring-2 ring-slate-50 ring-offset-1">
-                <img src="https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=100&h=100" alt="Avatar" />
+              <div className="w-8 h-8 shrink-0 rounded-lg bg-slate-200 overflow-hidden ring-2 ring-slate-50 ring-offset-1 flex items-center justify-center">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <FaUserCircle className="text-2xl text-slate-500" aria-hidden />
+                )}
               </div>
             </div>
           </div>
         </header>
 
         {/* TAB CONTENT */}
-        {/* <div className="p-6 md:p-10 max-w-6xl w-full mx-auto">
+        <div className="p-6 md:md:p-10 max-w-6xl w-full mx-auto">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "profile" && <ProfileTab />}
-          {activeTab === "availability" && <AvailabilityTab />}
           {activeTab === "appointments" && <AppointmentsTab />}
+          {activeTab === "calendar" && <Calendar />}
+          {activeTab === "availability" && <AvailabilityTab />}
           {activeTab === "manage-plans" && <ManagePlansTab />}
-        </div> */}
+        </div>
+
       </main>
     </div>
   );
