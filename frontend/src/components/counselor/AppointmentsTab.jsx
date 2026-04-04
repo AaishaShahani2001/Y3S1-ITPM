@@ -11,97 +11,6 @@ const COUNSELOR_ASSIGN_LOCATION = {
         "Admin-assigned counseling room for this semester. If you temporarily relocate a session, note it in your availability and tell the student at least 24 hours ahead.",
 };
 
-const DUMMY_APPOINTMENTS = [
-    {
-        id: 101,
-        bookingId: "MB-CA-2001",
-        studentId: 501,
-        studentName: "Liam Santos",
-        studentEmail: "liam.santos@student.local",
-        date: "2026-03-29",
-        timeSlot: "09:00 AM - 10:00 AM",
-        status: "Pending",
-        urgency: 8,
-        mood: "anxious",
-        age: 20,
-        contactNumber: "0917123456",
-        guardianPhoneNumber: "0917987654",
-        medicalNotes: "Feels anxious before major exams.",
-        description: "Needs stress management techniques for exam week.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-        assignLocation: COUNSELOR_ASSIGN_LOCATION.assignLocation,
-        locationNote: "Prefer morning slot; whiteboard may be used for grounding exercises.",
-    },
-    {
-        id: 102,
-        bookingId: "MB-CA-2002",
-        studentId: 502,
-        studentName: "Maya Perera",
-        studentEmail: "maya.perera@student.local",
-        date: "2026-03-30",
-        timeSlot: "01:00 PM - 02:00 PM",
-        status: "Confirmed",
-        urgency: 6,
-        mood: "stressed",
-        age: 21,
-        contactNumber: "0918234567",
-        guardianPhoneNumber: "0918345678",
-        medicalNotes: "Reports recurring stress and poor sleep.",
-        description: "Follow-up session after first counseling plan.",
-        studentCancelNote: "I have a conflict with a required class.",
-        counselorCancelNote: "",
-        reportPath: "",
-        assignLocation: COUNSELOR_ASSIGN_LOCATION.assignLocation,
-        locationNote: "",
-    },
-    {
-        id: 103,
-        bookingId: "MB-CA-2003",
-        studentId: 501,
-        studentName: "Liam Santos",
-        studentEmail: "liam.santos@student.local",
-        date: "2026-04-02",
-        timeSlot: "10:00 AM - 11:00 AM",
-        status: "Completed",
-        urgency: 4,
-        mood: "better",
-        age: 20,
-        contactNumber: "0917123456",
-        guardianPhoneNumber: "0917987654",
-        medicalNotes: "Improved coping after breathing exercises.",
-        description: "Previous session notes for continuity.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "",
-        assignLocation: "Main Building A406",
-        locationNote: "One-off session held in alternate room due to maintenance.",
-    },
-    {
-        id: 104,
-        bookingId: "MB-CA-2004",
-        studentId: 503,
-        studentName: "Noah Reyes",
-        studentEmail: "noah.reyes@student.local",
-        date: "2026-04-04",
-        timeSlot: "03:00 PM - 04:00 PM",
-        status: "Confirmed",
-        urgency: 9,
-        mood: "depressed",
-        age: 19,
-        contactNumber: "0918456789",
-        guardianPhoneNumber: "0918567890",
-        medicalNotes: "Reports low mood and fatigue for two weeks.",
-        description: "High-priority check-in requested by student.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "",
-        assignLocation: COUNSELOR_ASSIGN_LOCATION.assignLocation,
-        locationNote: "Student requested a late afternoon slot; ensure dimmed lights if needed.",
-    },
-];
-
 export default function AppointmentsTab() {
     // Top-level filters and UI states.
     const [activeTab, setActiveTab] = useState("pending");
@@ -115,12 +24,27 @@ export default function AppointmentsTab() {
     const [approvedCancellationIds, setApprovedCancellationIds] = useState([]);
     const [cancelModalAppt, setCancelModalAppt] = useState(null);
     const [cancelNote, setCancelNote] = useState("");
+    const user = JSON.parse(localStorage.getItem("user"));
 
-    // Load counselor appointments from local dummy source.
+    // Load counselor appointments from backend.
     const fetchAppointments = async () => {
+        if (!user?.token) {
+            setAppointments([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            setAppointments(DUMMY_APPOINTMENTS);
+            const res = await fetch("http://localhost:3000/api/appointments/counselor", {
+                headers: { Authorization: `Bearer ${user.token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAppointments(Array.isArray(data) ? data : []);
+            } else {
+                setAppointments([]);
+                toast.error("Failed to load appointments");
+            }
         } catch (err) {
             console.error("Failed to fetch appointments", err);
             toast.error("Failed to load appointments");
@@ -132,12 +56,25 @@ export default function AppointmentsTab() {
 
     useEffect(() => {
         fetchAppointments();
-    }, []);
+    }, [user?.token]);
+
+    // Generic status update request helper.
+    const updateAppointmentStatus = async (appointmentId, status) => {
+        const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/status`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({ status }),
+        });
+        return res;
+    };
 
     // Handles status flow: Pending -> Confirmed -> Completed.
     const handleStatusUpdate = async (appointment) => {
         const current = appointment.status || "";
-        if (current === "Completed") return;
+        if (!user?.token || current === "Completed") return;
         const appointmentId = appointment.id || appointment.ID;
         const nextStatus = current === "Pending" ? "Confirmed" : current === "Confirmed" ? "Completed" : "";
         if (!nextStatus) return;
@@ -150,13 +87,11 @@ export default function AppointmentsTab() {
                 if (!ok) return;
             }
 
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId ? { ...appt, status: nextStatus } : appt
-                )
-            );
-            if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
-                setSelectedAppt((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+            const res = await updateAppointmentStatus(appointmentId, nextStatus);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || `Failed to mark as ${nextStatus.toLowerCase()}`);
+                return;
             }
 
             toast.success(
@@ -164,6 +99,7 @@ export default function AppointmentsTab() {
                     ? "Appointment marked as confirmed"
                     : "Appointment marked as completed"
             );
+            await fetchAppointments();
         } catch (err) {
             console.error("Failed to update appointment status", err);
             toast.error("Something went wrong");
@@ -174,19 +110,20 @@ export default function AppointmentsTab() {
 
     const handleApproveCancellation = async (appointment) => {
         const appointmentId = appointment.id || appointment.ID;
-        if (!appointmentId) return;
+        if (!appointmentId || !user?.token) return;
 
         try {
             setUpdatingId(appointmentId);
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId
-                        ? { ...appt, status: "Cancelled" }
-                        : appt
-                )
-            );
-            if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
-                setSelectedAppt((prev) => (prev ? { ...prev, status: "Cancelled" } : prev));
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/cancellation/approve`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${user.token}`,
+                },
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to approve cancellation");
+                return;
             }
             toast.success("Cancellation approved and slot released");
             setApprovedCancellationIds((prev) => (prev.includes(appointmentId) ? prev : [...prev, appointmentId]));
@@ -202,23 +139,30 @@ export default function AppointmentsTab() {
     const handleCancelByCounselor = async () => {
         if (!cancelModalAppt) return;
         const appointmentId = cancelModalAppt.id || cancelModalAppt.ID;
-        if (!appointmentId) return;
+        if (!appointmentId || !user?.token) return;
         if (!cancelNote.trim()) {
             toast.error("Please add a cancellation note");
             return;
         }
         try {
             setUpdatingId(appointmentId);
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId
-                        ? { ...appt, status: "Cancelled", counselorCancelNote: cancelNote.trim() }
-                        : appt
-                )
-            );
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/counselor-cancel`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${user.token}`,
+                },
+                body: JSON.stringify({ note: cancelNote.trim() }),
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to cancel appointment");
+                return;
+            }
             toast.success("Appointment cancelled with note");
             setCancelModalAppt(null);
             setCancelNote("");
+            await fetchAppointments();
             if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
                 setSelectedAppt({ ...selectedAppt, status: "Cancelled", counselorCancelNote: cancelNote.trim() });
             }
@@ -236,6 +180,13 @@ export default function AppointmentsTab() {
         const [y, m, d] = isoDate.split("-");
         const date = new Date(y, (m || 1) - 1, d || 1);
         return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
+
+    const getReportUrl = (reportPath) => {
+        if (!reportPath) return "";
+        if (/^https?:\/\//i.test(reportPath)) return reportPath;
+        const normalizedPath = reportPath.startsWith("/") ? reportPath : `/${reportPath}`;
+        return `${window.location.origin}${normalizedPath}`;
     };
 
     // Maps numeric urgency to UI label.
@@ -668,7 +619,7 @@ export default function AppointmentsTab() {
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                     {selectedAppt.reportPath ? (
                                         <a
-                                            href={selectedAppt.reportPath}
+                                            href={`http://localhost:3000/${selectedAppt.reportPath}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex flex-col gap-1 group"
