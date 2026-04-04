@@ -18,6 +18,8 @@ import CounselorDashboard from "./pages/counselor/CounselorDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
 
 import Counsellors from "./pages/Counsellors";
+import CounsellorDetails from "./pages/CounsellorDetails";
+
 import BookAppointment from "./pages/BookAppointment";
 
 import EventList from "./pages/events/EventList";
@@ -28,8 +30,8 @@ import EventAnalyticsPage from "./pages/admin/EventAnalyticsPage";
 import MyEvents from "./pages/student/MyEvents";
 export default function App() {
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col relative overflow-x-hidden">
+      
       {/* NAVBAR */}
       <Navbar />
 
@@ -64,6 +66,8 @@ export default function App() {
 
           {/* Counselor Listing page */}
           <Route path="/counsellors" element={<Counsellors />} />
+          {/* Counselor Details page */}
+          <Route path="/counsellor/:id" element={<CounsellorDetails />} />
           
 
           {/* Event List Page */}
