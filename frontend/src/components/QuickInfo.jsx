@@ -11,11 +11,14 @@ import {
 
 export default function QuickInfo() {
   return (
-    <section className="relative bg-white -mt-20 pt-5 pb-20 z-20">
+    <section className="relative bg-transparent -mt-20 pt-5 pb-20 z-20">
       <div className="max-w-7xl mx-auto px-6">
 
         {/* TOP FLOATING INFO CARD */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 grid grid-cols-1 md:grid-cols-3 gap-8 border border-slate-100">
+        <div className="bg-white/70 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl p-8 md:p-12 grid grid-cols-1 md:grid-cols-3 gap-8 border border-white/60 relative overflow-hidden">
+          {/* Subtle inner glow */}
+          <div className="absolute inset-0 bg-linear-to-tr from-blue-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
+
 
           {/* Opening Hours */}
           <div className="flex flex-col border-b md:border-b-0 md:border-r border-slate-100 pb-8 md:pb-0 md:pr-8">
@@ -60,8 +63,8 @@ export default function QuickInfo() {
           {/* Emergency */}
           <div className="flex flex-col md:pl-8 justify-center">
             <h3 className="text-xl font-bold text-slate-800 mb-2 flex items-center gap-3">
-              <div className="p-3 bg-blue-50 rounded-full text-blue-600">
-                <FaPhoneAlt />
+              <div className="p-4 bg-linear-to-br from-blue-50 to-indigo-50 rounded-2xl text-blue-600 shadow-inner">
+                <FaPhoneAlt className="animate-pulse" />
               </div>
               Support Assistance
             </h3>
@@ -83,7 +86,9 @@ export default function QuickInfo() {
             { icon: FaAmbulance, title: "Emergency Help", desc: "Support when it matters most." },
             { icon: FaStethoscope, title: "Individual Approach", desc: "Personalized care for each student." }
           ].map((item, idx) => (
-            <div key={idx} className="group bg-white p-6 rounded-2xl hover:shadow-xl transition-all duration-300 border border-transparent hover:border-blue-50 text-center">
+            <div key={idx} className="group bg-white/40 backdrop-blur-md p-8 rounded-3xl hover:bg-white/80 transition-all duration-500 border border-white/20 hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/10 text-center hover:-translate-y-3 relative overflow-hidden">
+              <div className="absolute inset-0 bg-linear-to-b from-blue-500/0 to-blue-500/0 group-hover:to-blue-500/5 transition-all duration-500" />
+
               <div className="w-16 h-16 mx-auto bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                 <item.icon />
               </div>

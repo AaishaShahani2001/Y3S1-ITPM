@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { FaUser, FaBriefcase, FaFileUpload, FaCheckCircle, FaChevronRight, FaChevronLeft, FaTimes, FaEnvelope, FaPhone, FaGraduationCap, FaBuilding, FaUserMd } from "react-icons/fa";
-import { toast } from "react-toastify";
 
 export default function BecomeCounsellorModal({ onClose }) {
   const [step, setStep] = useState(1);
@@ -10,6 +9,7 @@ export default function BecomeCounsellorModal({ onClose }) {
   const [nicFile, setNicFile] = useState(null);
   const [certFiles, setCertFiles] = useState([]);
 
+  // Store all form field values
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -70,7 +70,6 @@ export default function BecomeCounsellorModal({ onClose }) {
     return Object.keys(e).length === 0;
   };
 
-  // Move to next step only when current step is valid.
   const nextStep = () => {
     if (validateStep(step)) setStep(step + 1);
   };
@@ -88,23 +87,67 @@ export default function BecomeCounsellorModal({ onClose }) {
     }
   };
 
+
+  // SUBMIT COUNSELLOR APPLICATION TO BACKEND
   async function onSubmit(e) {
     e.preventDefault();
 
-    // Client-side auth guard: block submission for guests.
-    if (!isUserLoggedIn()) {
-      toast.error("Login required");
-      return;
-    }
-
-    // Final validation for document step before submit.
+    // Validate final step before sending
     if (!validateStep(3)) return;
 
     setSubmitting(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 2000));
+
+    try {
+      // Get logged-in user from localStorage
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      // Create form data (needed for file uploads)
+      const formData = new FormData();
+
+      formData.append("userId", user.id);
+      formData.append("fullName", form.fullName);
+      formData.append("email", form.email);
+      formData.append("phone", form.phone);
+      formData.append("specialization", form.specialization);
+      formData.append("qualification", form.qualification);
+      formData.append("experience", form.experience);
+      formData.append("workplace", form.workplace);
+      formData.append("about", form.about);
+      formData.append("registrationId", form.registrationId);
+
+      // Attach uploaded files
+      if (nicFile) formData.append("nicFile", nicFile);
+      certFiles.forEach(file => {
+        formData.append("certFiles", file);
+      });
+      
+      // Send request to backend API
+      const res = await fetch("http://localhost:3000/api/counsellor/apply", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+
+      // Show success message
+      setSubmitted(true);
+
+    } catch (err) {
+      alert(err.message);
+    }
+
     setSubmitting(false);
-    setSubmitted(true);
+
+    // Close modal after success
     setTimeout(onClose, 3000);
   }
 
@@ -188,6 +231,7 @@ export default function BecomeCounsellorModal({ onClose }) {
                         const filtered = v.replace(/[^A-Za-z\s]/g, "");
                         setForm({ ...form, fullName: filtered });
                       }}
+
                       error={errors.fullName}
                       placeholder="Dr. Jane Doe"
                     />
@@ -211,7 +255,7 @@ export default function BecomeCounsellorModal({ onClose }) {
                           setForm({ ...form, phone: filtered });
                         }}
                         error={errors.phone}
-                        placeholder="0771234567"
+                        placeholder="+94 77 123 4567"
                         inputMode="numeric"
                       />
                     </div>
@@ -231,7 +275,7 @@ export default function BecomeCounsellorModal({ onClose }) {
                       icon={<FaUserMd />}
                       value={form.specialization}
                       onChange={(v) => setForm({ ...form, specialization: v })}
-                      options={["Stress Management", "Academic Support", "Career Guidance", "Personal Development", "Mental Health Specialist", "Emotional Regulation Expert"]}
+                      options={["Stress Management", "Academic Support", "Career Guidance", "Personal Development"]}
                       error={errors.specialization}
                     />
                     <Input
@@ -261,19 +305,12 @@ export default function BecomeCounsellorModal({ onClose }) {
                         type="number"
                         value={form.experience}
                         onChange={(v) => {
-                          // Keep empty value while editing, otherwise clamp minimum to 0.
-                          if (v === "") {
-                            setForm({ ...form, experience: "" });
-                            return;
-                          }
-                          const num = Number(v);
-                          if (!Number.isNaN(num)) {
-                            setForm({ ...form, experience: String(Math.max(0, num)) });
-                          }
+                          // Ensure only numeric input.
+                          const filtered = v.replace(/\D/g, "");
+                          setForm({ ...form, experience: filtered });
                         }}
                         error={errors.experience}
                         placeholder="5"
-                        min={0}
                       />
                       <Input
                         label="Current Workplace"
@@ -351,7 +388,7 @@ export default function BecomeCounsellorModal({ onClose }) {
 
 /* UI HELPERS */
 
-function Input({ label, icon, value, onChange, error, type = "text", placeholder, inputMode, min }) {
+function Input({ label, icon, value, onChange, error, type = "text", placeholder }) {
   return (
     <div className="w-full">
       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">{label}</label>
@@ -363,8 +400,6 @@ function Input({ label, icon, value, onChange, error, type = "text", placeholder
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          inputMode={inputMode}
-          min={min}
           placeholder={placeholder}
           className={`w-full bg-slate-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-sm transition-all outline-none ${error ? 'border-red-100 bg-red-50 text-red-900' : 'border-slate-50 focus:border-blue-100 focus:bg-white text-slate-900'
             }`}
