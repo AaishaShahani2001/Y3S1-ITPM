@@ -2,11 +2,25 @@ package controllers
 
 import (
 	"net/http"
-
+	"strconv"
+	"time"
 	"github.com/gin-gonic/gin"
 	"backend/initializers"
 	"backend/models"
 )
+
+type treatmentPlanListResponse struct {
+	ID             uint      `json:"id"`
+	AppointmentID  uint      `json:"appointment_id"`
+	CounsellorID   uint      `json:"counsellor_id"`
+	StudentID      uint      `json:"student_id"`
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	Status         string    `json:"status"`
+	StudentName    string    `json:"student_name"`
+	CounsellorName string    `json:"counsellor_name"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
 
 // Create Treatment Plan
 func CreateTreatmentPlan(c *gin.Context) {
@@ -59,6 +73,61 @@ func GetTreatmentPlans(c *gin.Context) {
 		LEFT JOIN users AS counsellor_users ON counsellor_users.id = tp.counsellor_id
 		ORDER BY tp.id DESC
 	`).Scan(&plans).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch treatment plans"})
+		return
+	}
+
+	c.JSON(http.StatusOK, plans)
+}
+
+// GetTreatmentPlansByStudent returns plans for one student. Students may only access their own;
+// counselors and admins may access any student.
+func GetTreatmentPlansByStudent(c *gin.Context) {
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	currentUser, ok := userVal.(models.User)
+	if !ok || currentUser.ID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	studentIDStr := c.Param("studentId")
+	studentID, err := strconv.ParseUint(studentIDStr, 10, 32)
+	if err != nil || studentID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid student ID"})
+		return
+	}
+
+	if currentUser.Role == "student" && currentUser.ID != uint(studentID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	var plans []treatmentPlanListResponse
+
+	err = initializers.DB.Raw(`
+		SELECT 
+			tp.id,
+			tp.appointment_id,
+			tp.counsellor_id,
+			tp.student_id,
+			tp.title,
+			tp.description,
+			tp.status,
+			student_users.name AS student_name,
+			counsellor_users.name AS counsellor_name,
+			tp.updated_at
+		FROM treatment_plans tp
+		LEFT JOIN users AS student_users ON student_users.id = tp.student_id
+		LEFT JOIN users AS counsellor_users ON counsellor_users.id = tp.counsellor_id
+		WHERE tp.student_id = ?
+		ORDER BY tp.id DESC
+	`, uint(studentID)).Scan(&plans).Error
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch treatment plans"})
