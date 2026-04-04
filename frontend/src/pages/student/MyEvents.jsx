@@ -45,7 +45,7 @@ export default function MyEvents() {
     (e) => e.date && new Date(e.date) < today
   );
 
-  // ✅ FIXED DATE (NO TIMEZONE BUG)
+  // FORMAT DATE (NO BUG)
   const selectedDateStr =
     date.getFullYear() +
     "-" +
@@ -57,12 +57,16 @@ export default function MyEvents() {
     (e) => e.date === selectedDateStr
   );
 
+  // check if selected date has past event
+  const hasPastEvent = filteredEvents.some(
+    (e) => new Date(e.date) < today
+  );
+
   const getDaysLeft = (date) => {
     const diff = new Date(date) - new Date();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  // ✅ CANCEL FUNCTION
   const handleCancel = async (id) => {
     const user = JSON.parse(localStorage.getItem("user"));
 
@@ -99,24 +103,48 @@ export default function MyEvents() {
           </p>
         </div>
 
-        {/* SELECTED DATE */}
+        {/* ✅ SELECTED DATE EVENTS */}
         {filteredEvents.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow"
+            className={`p-5 rounded-2xl border shadow ${
+              hasPastEvent
+                ? "bg-red-50 border-red-200"
+                : "bg-blue-50 border-blue-100"
+            }`}
           >
-            <h3 className="text-blue-700 font-semibold mb-2">
-              Events on Selected Date
+            <h3
+              className={`font-semibold mb-3 ${
+                hasPastEvent ? "text-red-700" : "text-blue-700"
+              }`}
+            >
+              Events on {selectedDateStr}
             </h3>
-            {filteredEvents.map((e) => (
-              <div key={e.id}>
-                <p className="font-semibold">{e.title}</p>
-                <p className="text-sm text-gray-600">
-                  {e.location}
-                </p>
-              </div>
-            ))}
+
+            {filteredEvents.map((e) => {
+              const isPast = new Date(e.date) < today;
+
+              return (
+                <div key={e.id} className="mb-3">
+                  <p
+                    className={`font-semibold ${
+                      isPast ? "text-red-600" : "text-gray-800"
+                    }`}
+                  >
+                    {e.title}
+                  </p>
+
+                  <p className="text-sm text-gray-600">
+                    📍 {e.location}
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    📅 {e.date}
+                  </p>
+                </div>
+              );
+            })}
           </motion.div>
         )}
 
@@ -137,7 +165,6 @@ export default function MyEvents() {
               whileHover={{ scale: 1.05 }}
               className="group bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg hover:shadow-2xl transition border border-gray-200 overflow-hidden"
             >
-              {/* IMAGE */}
               <div className="relative">
                 <img
                   src={
@@ -145,18 +172,15 @@ export default function MyEvents() {
                       ? `http://localhost:3000/${e.image}`
                       : "https://via.placeholder.com/400x200"
                   }
-                  className="h-44 w-full object-cover group-hover:scale-105 transition duration-300"
+                  className="h-44 w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
               </div>
 
-              {/* CONTENT */}
               <div className="p-4 space-y-2">
                 <h4 className="font-semibold text-gray-800 text-lg">
                   {e.title}
                 </h4>
 
-                {/* BADGE BELOW IMAGE */}
                 <span className="inline-block bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
                   Upcoming
                 </span>
@@ -175,7 +199,7 @@ export default function MyEvents() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleCancel(e.id)}
-                  className="mt-3 w-full py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg shadow hover:shadow-lg"
+                  className="mt-3 w-full py-2 bg-red-500 text-white rounded-lg"
                 >
                   Cancel Registration
                 </motion.button>
@@ -233,46 +257,40 @@ export default function MyEvents() {
           <Calendar
             onChange={setDate}
             value={date}
-           tileContent={({ date }) => {
-            const formatted =
-              date.getFullYear() +
-              "-" +
-              String(date.getMonth() + 1).padStart(2, "0") +
-              "-" +
-              String(date.getDate()).padStart(2, "0");
+            tileContent={({ date }) => {
+              const formatted =
+                date.getFullYear() +
+                "-" +
+                String(date.getMonth() + 1).padStart(2, "0") +
+                "-" +
+                String(date.getDate()).padStart(2, "0");
 
-            const dayEvents = events.filter((e) => e.date === formatted);
-
-            if (dayEvents.length > 0) {
-              return (
-                <div className="flex justify-center mt-1 relative group">
-                  
-                  {/* DOTS */}
-                  <div className="flex gap-1">
-                    {dayEvents.slice(0, 3).map((_, i) => (
-                      <div
-                        key={i}
-                        className="w-2 h-2 bg-blue-600 rounded-full"
-                      ></div>
-                    ))}
-                  </div>
-
-                  {/* +MORE */}
-                  {dayEvents.length > 3 && (
-                    <span className="text-[10px] text-blue-600 ml-1">
-                      +{dayEvents.length - 3}
-                    </span>
-                  )}
-
-                  {/* TOOLTIP */}
-                  <div className="absolute bottom-6 hidden group-hover:block bg-black text-white text-xs rounded-lg px-2 py-1 shadow-lg whitespace-nowrap z-50">
-                    {dayEvents.map((e) => e.title).join(", ")}
-                  </div>
-
-                </div>
+              const dayEvents = events.filter(
+                (e) => e.date === formatted
               );
-            }
-          }}
+
+              if (dayEvents.length > 0) {
+                return (
+                  <div className="flex justify-center mt-1">
+                    {dayEvents.slice(0, 3).map((event, i) => {
+                      const isPast =
+                        new Date(event.date) < today;
+
+                      return (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 mx-[1px] rounded-full ${
+                            isPast
+                              ? "bg-red-500"
+                              : "bg-blue-600"
+                          }`}
+                        ></div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+            }}
           />
         </div>
       </div>

@@ -10,6 +10,8 @@ export default function EventManagement() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [location, setLocation] = useState("");
   const [capacity, setCapacity] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState("");
@@ -17,7 +19,7 @@ export default function EventManagement() {
 
   const [error, setError] = useState("");
 
-  // 🔥 FETCH EVENTS
+  // FETCH EVENTS
   const fetchEvents = () => {
     fetch("http://localhost:3000/api/events")
       .then((res) => res.json())
@@ -28,85 +30,77 @@ export default function EventManagement() {
     fetchEvents();
   }, []);
 
-  // 🔥 IMAGE PREVIEW
+  // IMAGE PREVIEW
   const handleImage = (file) => {
     if (!file) return;
-
     setImageFile(file);
     setPreview(URL.createObjectURL(file));
   };
 
-  // 🔥 VALIDATION + CREATE
+  // RESET FORM
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setDate("");
+    setTime("");
+    setLocation("");
+    setCapacity("");
+    setImageFile(null);
+    setPreview("");
+    setEditId(null);
+  };
+
+  // CREATE / UPDATE
   const createEvent = async () => {
     setError("");
 
     const today = new Date().toISOString().split("T")[0];
 
-    if (!title.trim() || title.length < 3) {
+    if (!title.trim() || title.length < 3)
       return setError("Title must be at least 3 characters");
-    }
 
-    if (!description.trim()) {
+    if (!description.trim())
       return setError("Description is required");
-    }
 
-    if (!date) {
-      return setError("Please select a date");
-    }
+    if (!date || date < today)
+      return setError("Invalid date");
 
-    if (date < today) {
-      return setError("Event date must be in the future");
-    }
+    if (!time)
+      return setError("Please select a time");
 
-    if (!capacity || capacity <= 0 || capacity > 1000) {
-      return setError("Capacity must be between 1 - 1000");
-    }
+    if (!location.trim())
+      return setError("Location is required");
 
-    if (!editId && !imageFile) {
-      return setError("Please upload an event image");
-    }
+    if (!capacity || capacity <= 0 || capacity > 1000)
+      return setError("Capacity must be between 1–1000");
+
+    if (!editId && !imageFile)
+      return setError("Please upload an image");
 
     const formData = new FormData();
     formData.append("title", title);
     formData.append("description", description);
     formData.append("date", date);
-    formData.append("time", "10:00");
-    formData.append("location", "Main Hall");
+    formData.append("time", time);
+    formData.append("location", location);
     formData.append("capacity", capacity);
 
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
+    if (imageFile) formData.append("image", imageFile);
 
     const method = editId ? "PUT" : "POST";
     const url = editId
       ? `http://localhost:3000/api/events/${editId}`
       : "http://localhost:3000/api/events";
 
-    await fetch(url, {
-      method,
-      body: formData,
-    });
+    await fetch(url, { method, body: formData });
 
-    // RESET
-    setTitle("");
-    setDescription("");
-    setDate("");
-    setCapacity("");
-    setImageFile(null);
-    setPreview("");
-    setEditId(null);
-
+    resetForm();
     fetchEvents();
   };
 
-  // 🔥 DELETE
+  // DELETE
   const deleteEvent = async (id) => {
-    const confirmDelete = window.confirm(
-      "Delete this event? This will remove all registrations."
-    );
-
-    if (!confirmDelete) return;
+    if (!window.confirm("Delete this event?")) return;
 
     await fetch(`http://localhost:3000/api/events/${id}`, {
       method: "DELETE",
@@ -122,17 +116,28 @@ export default function EventManagement() {
         Event Management
       </h2>
 
-      {/* 🔥 FORM */}
+      {/* FORM */}
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/70 backdrop-blur-xl border rounded-3xl p-6 shadow-xl mb-10"
+        className="bg-white/60 backdrop-blur-2xl border rounded-3xl p-8 shadow-2xl mb-10"
       >
-        <h3 className="text-lg font-semibold mb-4">
+
+        {/* EDIT MODE */}
+        {editId && (
+          <div className="mb-5 p-3 rounded-xl bg-yellow-100 border flex justify-between">
+            <span>✏️ Editing Event</span>
+            <button onClick={resetForm} className="underline text-sm">
+              Cancel
+            </button>
+          </div>
+        )}
+
+        <h3 className="text-xl font-semibold mb-6">
           {editId ? "Update Event" : "Create Event"}
         </h3>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-5">
 
           <input
             placeholder="Event Title"
@@ -148,11 +153,30 @@ export default function EventManagement() {
             className="input"
           />
 
+          {/* BIG DESCRIPTION */}
+          <div className="md:col-span-2">
+            <label className="text-sm text-gray-600">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              className="input mt-1 resize-none"
+              placeholder="Enter detailed event description..."
+            />
+          </div>
+
           <input
-            placeholder="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="input md:col-span-2"
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="input"
+          />
+
+          <input
+            placeholder="Location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="input"
           />
 
           <input
@@ -170,19 +194,21 @@ export default function EventManagement() {
           />
         </div>
 
+        {/* IMAGE */}
         {preview && (
           <motion.img
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             src={preview}
-            className="mt-4 h-44 w-full object-cover rounded-xl shadow"
+            className="mt-5 h-44 w-full object-cover rounded-2xl shadow"
           />
         )}
 
         <motion.button
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={createEvent}
-          className="mt-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition"
+          className="mt-6 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-3 rounded-xl shadow-lg"
         >
           {editId ? "Update Event" : "Create Event"}
         </motion.button>
@@ -192,15 +218,19 @@ export default function EventManagement() {
         )}
       </motion.div>
 
-      {/* 🔥 EVENTS GRID */}
+      {/* EVENTS */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
         {events.map((e, i) => (
           <motion.div
             key={e.ID}
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
+            whileHover={{
+              scale: 1.04,
+              boxShadow: "0px 10px 30px rgba(0,0,0,0.1)"
+            }}
             className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg overflow-hidden"
           >
             <img
@@ -212,6 +242,7 @@ export default function EventManagement() {
               <h3 className="font-semibold text-lg">{e.Title}</h3>
 
               <p className="text-sm text-gray-500">📅 {e.Date}</p>
+              <p className="text-sm text-gray-500">⏰ {e.Time}</p>
               <p className="text-sm text-gray-500">📍 {e.Location}</p>
 
               <p className="text-blue-600 text-sm">
@@ -226,6 +257,8 @@ export default function EventManagement() {
                     setTitle(e.Title);
                     setDescription(e.Description);
                     setDate(e.Date);
+                    setTime(e.Time);
+                    setLocation(e.Location);
                     setCapacity(e.Capacity);
                     setPreview(`http://localhost:3000/${e.Image}`);
                   }}
@@ -265,11 +298,12 @@ export default function EventManagement() {
             border-radius: 12px;
             border: 1px solid #e5e7eb;
             outline: none;
+            transition: all 0.2s;
           }
 
           .input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
           }
         `}
       </style>
