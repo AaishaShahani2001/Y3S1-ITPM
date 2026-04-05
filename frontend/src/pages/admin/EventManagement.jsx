@@ -23,7 +23,10 @@ export default function EventManagement() {
   const fetchEvents = () => {
     fetch("http://localhost:3000/api/events")
       .then((res) => res.json())
-      .then((data) => setEvents(data));
+      .then((data) => {
+        setEvents(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setEvents([]));
   };
 
   useEffect(() => {
@@ -106,7 +109,7 @@ export default function EventManagement() {
       method: "DELETE",
     });
 
-    setEvents(events.filter((e) => e.ID !== id));
+    setEvents((prev) => (Array.isArray(prev) ? prev : []).filter((e) => e.ID !== id));
   };
 
   return (
@@ -221,7 +224,7 @@ export default function EventManagement() {
       {/* EVENTS */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        {events.map((e, i) => (
+        {(events ?? []).map((e, i) => (
           <motion.div
             key={e.ID}
             initial={{ opacity: 0, y: 50 }}
