@@ -165,6 +165,8 @@ func CreateAppointment(c *gin.Context) {
 		return
 	}
 
+	FulfillWaitlistForStudentOnBooking(user.ID, appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
+
 	// 9. Success Response
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Appointment booked successfully",
@@ -402,6 +404,7 @@ func DeleteAppointmentForStudent(c *gin.Context) {
 			return
 		}
 
+		PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 		c.JSON(http.StatusOK, gin.H{"message": "Appointment deleted successfully", "status": appointment.Status})
 		return
 	}
@@ -466,6 +469,7 @@ func ApproveCancellationForCounselor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve cancellation"})
 		return
 	}
+	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 	c.JSON(http.StatusOK, gin.H{"message": "Cancellation approved and slot released", "status": appointment.Status})
 }
 
@@ -511,6 +515,8 @@ func CancelAppointmentByCounselor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel appointment"})
 		return
 	}
+
+	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Appointment cancelled successfully",

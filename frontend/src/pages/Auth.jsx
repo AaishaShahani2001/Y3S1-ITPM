@@ -75,9 +75,13 @@ export default function Auth() {
           token: res.data.token,
         })
       );
-      // Redirect to home page
       setTimeout(() => {
-        navigate("/");
+        const redirect = localStorage.getItem("redirectAfterLogin");
+        if (redirect === "booking-step3" || redirect === "booking-step4") {
+          navigate("/book-appointment");
+        } else {
+          navigate("/");
+        }
       }, 1000);
 
     } catch (err) {

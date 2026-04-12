@@ -8,6 +8,19 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 
+const API_BASE = "http://localhost:3000";
+
+/** Normalize Sri Lanka mobile to 10 digits starting with 0 (e.g. 077xxxxxxx). */
+function normalizeLKPhone(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  if (d.length === 10 && d.startsWith("0")) return d;
+  if (d.length === 9 && d.startsWith("7")) return `0${d}`;
+  if (d.length === 11 && d.startsWith("94")) return `0${d.slice(2)}`;
+  if (d.length === 12 && d.startsWith("094")) return `0${d.slice(3)}`;
+  if (d.length === 13 && d.startsWith("0094")) return `0${d.slice(4)}`;
+  return null;
+}
+
 const MOODS = [
   { label: "Happy", icon: <FaSmile />, value: "happy", color: "bg-green-100 text-green-600" },
   { label: "Neutral", icon: <FaMeh />, value: "neutral", color: "bg-gray-100 text-gray-600" },
@@ -89,8 +102,13 @@ export default function BookAppointment() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateStep4 = () => {
-    let newErrors = {};
+  const computeStep4Errors = () => {
+    const newErrors = {};
+
+    if (!String(selectedCounsellorId || "").trim() || !selectedDate || !String(selectedSlot || "").trim()) {
+      newErrors.session =
+        "Counselor, date, or time is missing. Go back to scheduling or open this booking again from My Wait List.";
+    }
 
     const ageValue = String(formData.age || "").trim();
     if (!ageValue) {
@@ -104,21 +122,24 @@ export default function BookAppointment() {
       }
     }
 
-    const contact = formData.contactNumber.trim();
-    if (!contact) {
+    const contactNorm = normalizeLKPhone(formData.contactNumber);
+    if (!String(formData.contactNumber || "").trim()) {
       newErrors.contactNumber = "Contact number is required";
-    } else if (!/^0\d{9}$/.test(contact)) {
-      newErrors.contactNumber = "Contact number must be exactly 10 digits (starts with 0)";
+    } else if (!contactNorm) {
+      newErrors.contactNumber =
+        "Enter a valid mobile (e.g. 0771234567, 771234567, or 94771234567)";
     }
 
-    const guardian = formData.guardianPhoneNumber.trim();
-    if (!guardian) {
+    const guardianNorm = normalizeLKPhone(formData.guardianPhoneNumber);
+    if (!String(formData.guardianPhoneNumber || "").trim()) {
       newErrors.guardianPhoneNumber = "Guardian phone number is required";
-    } else if (!/^0\d{9}$/.test(guardian)) {
-      newErrors.guardianPhoneNumber = "Guardian number must be exactly 10 digits (starts with 0)";
+    } else if (!guardianNorm) {
+      newErrors.guardianPhoneNumber =
+        "Enter a valid mobile (e.g. 0771234567, 771234567, or 94771234567)";
     }
 
-    if (formData.medicalNotes.length > 500) {
+    const notesLen = (formData.medicalNotes || "").length;
+    if (notesLen > 500) {
       newErrors.medicalNotes = "Max 500 characters allowed";
     }
 
@@ -133,6 +154,11 @@ export default function BookAppointment() {
       }
     }
 
+    return newErrors;
+  };
+
+  const validateStep4 = () => {
+    const newErrors = computeStep4Errors();
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -171,6 +197,139 @@ export default function BookAppointment() {
     const randomId = "BK-" + Math.floor(100000 + Math.random() * 900000);
     setBookingId(randomId);
   }, []);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("mindbridge_waitlist_booking");
+    if (!raw || counsellors.length === 0) return;
+    try {
+      const w = JSON.parse(raw);
+      const cid = w.counsellorId ?? w.counsellorID;
+      if (cid && w.date && w.timeSlot) {
+        setSelectedCounsellorId(String(cid));
+        setSelectedDate(w.date);
+        setSelectedSlot(w.timeSlot);
+        const c = counsellors.find((x) => String(x.id) === String(cid));
+        setAiResult((prev) =>
+          prev && prev.mood
+            ? prev
+            : { mood: "neutral", urgency: 5, suggest: c?.category || "" }
+        );
+        setStep(4);
+        sessionStorage.removeItem("mindbridge_waitlist_booking");
+        toast.info("Complete your details to confirm your waitlist slot.");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [counsellors]);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("mindbridge_pending_waitlist_join");
+    if (!raw || counsellors.length === 0) return;
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    if (!user?.token) return;
+    let pending;
+    try {
+      pending = JSON.parse(raw);
+    } catch {
+      sessionStorage.removeItem("mindbridge_pending_waitlist_join");
+      return;
+    }
+    if (!pending.counsellorId || !pending.date || !pending.timeSlot) {
+      sessionStorage.removeItem("mindbridge_pending_waitlist_join");
+      return;
+    }
+    sessionStorage.removeItem("mindbridge_pending_waitlist_join");
+
+    setSelectedCounsellorId(String(pending.counsellorId));
+    setSelectedDate(pending.date);
+    setStep(3);
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/appointments/waitlist`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({
+            counsellorId: pending.counsellorId,
+            date: pending.date,
+            timeSlot: pending.timeSlot,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data.error || "Could not join waitlist");
+          return;
+        }
+        toast.success(
+          typeof data.queuePosition === "number"
+            ? `You're #${data.queuePosition} on the waitlist for this slot.`
+            : "Joined the waitlist for this slot."
+        );
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to join waitlist");
+      }
+    })();
+  }, [counsellors]);
+
+  const joinWaitlistForSlot = async (timeOnly) => {
+    if (!selectedDate || !selectedCounsellorId) {
+      toast.error("Select a date and counselor first.");
+      return;
+    }
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    if (!user?.token) {
+      localStorage.setItem("redirectAfterLogin", "booking-step3");
+      try {
+        sessionStorage.setItem(
+          "mindbridge_pending_waitlist_join",
+          JSON.stringify({
+            counsellorId: selectedCounsellorId,
+            date: selectedDate,
+            timeSlot: timeOnly,
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+      toast.info("Please log in to join the waitlist");
+      navigate("/auth");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/appointments/waitlist`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          counsellorId: selectedCounsellorId,
+          date: selectedDate,
+          timeSlot: timeOnly,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Could not join waitlist");
+        return;
+      }
+      toast.success(
+        typeof data.queuePosition === "number"
+          ? `You're #${data.queuePosition} on the waitlist for this slot.`
+          : "Joined the waitlist for this slot."
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to join waitlist");
+    }
+  };
 
   const selectedCounsellor = counsellors.find(c => c.id === (selectedCounsellorId));
 
@@ -283,7 +442,15 @@ export default function BookAppointment() {
   };
 
   const handleSubmit = async (e) => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    e.preventDefault();
+
+    const userRaw = localStorage.getItem("user");
+    let user = null;
+    try {
+      user = userRaw ? JSON.parse(userRaw) : null;
+    } catch {
+      user = null;
+    }
 
     if (!user || !user.token) {
       localStorage.setItem("redirectAfterLogin", "booking-step4");
@@ -294,19 +461,30 @@ export default function BookAppointment() {
 
       return;
     }
-    e.preventDefault();
+
+    const step4Errors = computeStep4Errors();
+    if (Object.keys(step4Errors).length > 0) {
+      setErrors(step4Errors);
+      const order = ["session", "age", "contactNumber", "guardianPhoneNumber", "medicalNotes", "report"];
+      const msg = order.map((k) => step4Errors[k]).find(Boolean) || Object.values(step4Errors)[0];
+      toast.error(msg);
+      return;
+    }
+
+    const contactOut = normalizeLKPhone(formData.contactNumber);
+    const guardianOut = normalizeLKPhone(formData.guardianPhoneNumber);
 
     const form = new FormData();
 
     form.append("bookingId", bookingId);
-    form.append("counsellorId", selectedCounsellorId);
+    form.append("counsellorId", String(selectedCounsellorId ?? ""));
     form.append("date", selectedDate);
     form.append("timeSlot", selectedSlot);
     form.append("mood", aiResult?.mood || "");
     form.append("urgency", aiResult?.urgency || 0);
     form.append("age", formData.age);
-    form.append("contactNumber", formData.contactNumber);
-    form.append("guardianPhoneNumber", formData.guardianPhoneNumber);
+    form.append("contactNumber", contactOut);
+    form.append("guardianPhoneNumber", guardianOut);
     form.append("medicalNotes", formData.medicalNotes);
 
     if (formData.report) {
@@ -352,6 +530,7 @@ export default function BookAppointment() {
       localStorage.removeItem("redirectAfterLogin");
     }
   }, []);
+
 
 
   useEffect(() => {
@@ -455,13 +634,17 @@ export default function BookAppointment() {
     return futureOrToday.sort((a, b) => parseISODateToUTC(a) - parseISODateToUTC(b));
   }, [availability, todayStr]);
 
-  // Clear selection if it becomes invalid (past date/slot)
+  // Clear selection if it becomes invalid (past date/slot).
+  // While availability is still loading ([]), do not clear — otherwise deep links
+  // (e.g. waitlist "Book now") lose date/slot before the API returns.
   useEffect(() => {
-    if (selectedDate && !availableDates.includes(selectedDate)) {
+    if (!selectedDate) return;
+    if (availability.length === 0) return;
+    if (!availableDates.includes(selectedDate)) {
       setSelectedDate("");
       setSelectedSlot("");
     }
-  }, [selectedDate, availableDates]);
+  }, [selectedDate, availableDates, availability.length]);
 
   useEffect(() => {
     if (!selectedSlot || availableSlotsForDate.length === 0) return;
@@ -800,7 +983,19 @@ export default function BookAppointment() {
                                 </button>
 
                                 {isBooked && (
-                                  <span className="mt-1 text-[9px] text-red-500 font-bold">Booked</span>
+                                  <div className="mt-1 flex flex-col items-center gap-1">
+                                    <span className="text-[9px] text-red-500 font-bold">Booked</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        joinWaitlistForSlot(timeOnly);
+                                      }}
+                                      className="text-[9px] font-black uppercase tracking-tight text-indigo-600 hover:text-indigo-800 underline"
+                                    >
+                                      Join waitlist
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             );
@@ -848,6 +1043,12 @@ export default function BookAppointment() {
                   </button>
                   <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Review & Finalize</h2>
                   <p className="text-slate-500 text-sm mb-8 font-medium">Verify your details and complete your booking information.</p>
+
+                  {errors.session && (
+                    <p className="text-red-700 text-sm font-medium mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
+                      {errors.session}
+                    </p>
+                  )}
 
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="p-6 bg-linear-to-br from-slate-50 via-white to-blue-50/30 rounded-2xl border border-slate-100 space-y-5 shadow-sm">
