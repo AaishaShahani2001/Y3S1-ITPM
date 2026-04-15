@@ -37,7 +37,7 @@ export default function Counsellors() {
             rating: 4.8, // Mocking rating
             bio: c.about || "Dedicated professional providing mental health support and guidance.",
             image: c.profileImage
-              ? `http://localhost:8080/${c.profileImage}`
+              ? `http://localhost:3000/${c.profileImage}`
               : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=200&h=200"
           }));
           setCounsellors(mapped);
@@ -70,7 +70,7 @@ export default function Counsellors() {
   }, [q, cat, counsellors]);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
+    <main className="min-h-screen bg-linear-to-b from-sky-50/90 via-blue-50/50 to-slate-50 pb-16">
 
       {/* ================= HERO SECTION ================= */}
       <section className="relative h-80 w-full overflow-hidden">
@@ -151,14 +151,16 @@ export default function Counsellors() {
                 key={c.id}
                 className="group bg-white rounded-4xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col"
               >
-                {/* Header/Image Area */}
-                <div className="relative h-40 bg-slate-100">
-                  <img
-                    src={c.image}
-                    alt={c.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 right-3">
+                {/* Header/Image Area — contain so faces aren’t cropped; neutral frame */}
+                <div className="relative aspect-4/3 bg-slate-100">
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <img
+                      src={c.image}
+                      alt={c.name}
+                      className="max-h-full max-w-full w-auto h-auto object-contain object-center rounded-xl shadow-sm ring-1 ring-slate-200/80 group-hover:scale-[1.02] transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="absolute top-3 right-3 z-10">
                     <span
                       className={`text-[9px] font-black px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-md uppercase tracking-wider ${c.available
                         ? "bg-green-500 text-white"

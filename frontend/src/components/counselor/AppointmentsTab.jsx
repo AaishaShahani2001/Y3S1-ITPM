@@ -4,13 +4,6 @@ import { toast } from "react-toastify";
 import ApproveModel from "../ApproveModel";
 import ConfirmationModel from "../ConfirmationModel";
 
-/** Matches admin Assign Location building list; shown at top of this tab. */
-const COUNSELOR_ASSIGN_LOCATION = {
-    assignLocation: "New Building F1204",
-    locationNote:
-        "Admin-assigned counseling room for this semester. If you temporarily relocate a session, note it in your availability and tell the student at least 24 hours ahead.",
-};
-
 export default function AppointmentsTab() {
     // Top-level filters and UI states.
     const [activeTab, setActiveTab] = useState("pending");
@@ -24,33 +17,65 @@ export default function AppointmentsTab() {
     const [approvedCancellationIds, setApprovedCancellationIds] = useState([]);
     const [cancelModalAppt, setCancelModalAppt] = useState(null);
     const [cancelNote, setCancelNote] = useState("");
+    const [assignedWorkplace, setAssignedWorkplace] = useState("");
+    const [assignedLocationNote, setAssignedLocationNote] = useState("");
+    const [locationLoading, setLocationLoading] = useState(true);
     const user = JSON.parse(localStorage.getItem("user"));
 
-    // Load counselor appointments from backend.
+    // Load counselor appointments + assigned location (appointments include assignLocation from join; /location/me is fallback).
     const fetchAppointments = async () => {
         if (!user?.token) {
             setAppointments([]);
+            setAssignedWorkplace("");
+            setAssignedLocationNote("");
             setLoading(false);
+            setLocationLoading(false);
             return;
         }
         setLoading(true);
+        setLocationLoading(true);
         try {
-            const res = await fetch("http://localhost:3000/api/appointments/counselor", {
-                headers: { Authorization: `Bearer ${user.token}` },
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setAppointments(Array.isArray(data) ? data : []);
+            const [apptRes, locRes] = await Promise.all([
+                fetch("http://localhost:3000/api/appointments/counselor", {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                }),
+                fetch("http://localhost:3000/api/counsellor/location/me", {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                }),
+            ]);
+
+            let list = [];
+            if (apptRes.ok) {
+                const data = await apptRes.json();
+                list = Array.isArray(data) ? data : [];
+                setAppointments(list);
             } else {
                 setAppointments([]);
                 toast.error("Failed to load appointments");
             }
+
+            let wMe = "";
+            let nMe = "";
+            if (locRes.ok) {
+                const loc = await locRes.json();
+                wMe = String(loc.workplace ?? loc.assignLocation ?? "").trim();
+                nMe = String(loc.locationReason ?? loc.locationNote ?? "").trim();
+            }
+            const first = list[0];
+            const wAppt = first ? String(first.assignLocation ?? "").trim() : "";
+            const nAppt = first ? String(first.locationNote ?? "").trim() : "";
+            // Prefer /location/me, then values joined on appointment rows (same data if Scan works).
+            setAssignedWorkplace(wMe || wAppt || "Not Assigned");
+            setAssignedLocationNote(nMe || nAppt);
         } catch (err) {
             console.error("Failed to fetch appointments", err);
             toast.error("Failed to load appointments");
             setAppointments([]);
+            setAssignedWorkplace("Not Assigned");
+            setAssignedLocationNote("");
         } finally {
             setLoading(false);
+            setLocationLoading(false);
         }
     };
 
@@ -273,7 +298,7 @@ export default function AppointmentsTab() {
 
     return (
         <div className="animate-fadeIn space-y-8">
-            {/* Counselor assigned location + admin note (dummy) */}
+            {/* Counselor assigned location + admin note (from API) */}
             <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-linear-to-br from-indigo-50 via-white to-slate-50 p-5 shadow-sm md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="flex min-w-0 gap-4">
@@ -285,7 +310,7 @@ export default function AppointmentsTab() {
                                 Assigned location
                             </p>
                             <p className="mt-1 wrap-break-words text-lg font-black tracking-tight text-slate-900">
-                                {COUNSELOR_ASSIGN_LOCATION.assignLocation}
+                                {locationLoading ? "…" : assignedWorkplace || "Not Assigned"}
                             </p>
                             <p className="mt-2 text-xs font-medium text-slate-500">
                                 Sessions default to this room unless an appointment specifies otherwise below.
@@ -296,7 +321,10 @@ export default function AppointmentsTab() {
                 <div className="mt-5 rounded-xl border border-slate-100 bg-white/90 p-4 shadow-inner">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Note</p>
                     <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">
-                        {COUNSELOR_ASSIGN_LOCATION.locationNote}
+                        {locationLoading
+                            ? "…"
+                            : assignedLocationNote ||
+                              "No admin note for your location yet. Contact admin if you need a room change."}
                     </p>
                 </div>
             </div>
@@ -513,7 +541,7 @@ export default function AppointmentsTab() {
                                             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Room / venue</p>
                                             <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
                                                 <FaMapPin className="shrink-0 text-indigo-500" />
-                                                {selectedAppt.assignLocation || COUNSELOR_ASSIGN_LOCATION.assignLocation}
+                                                {selectedAppt.assignLocation || assignedWorkplace || "Not Assigned"}
                                             </p>
                                         </div>
                                         <div className="md:col-span-2">
@@ -521,7 +549,8 @@ export default function AppointmentsTab() {
                                             <p className="text-sm leading-relaxed text-slate-600">
                                                 {selectedAppt.locationNote
                                                     ? selectedAppt.locationNote
-                                                    : "No extra location note for this booking."}
+                                                    : assignedLocationNote ||
+                                                      "No extra location note for this booking."}
                                             </p>
                                         </div>
                                     </div>

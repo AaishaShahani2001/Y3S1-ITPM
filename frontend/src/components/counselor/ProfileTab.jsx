@@ -1,145 +1,157 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaPlus } from "react-icons/fa";
 import { toast } from "react-toastify";
 
-/** Demo profile used to seed the form (frontend only). */
-const DUMMY_PROFILE = {
-    fullName: "Dr. Nethmi Perera",
-    specialization: "Stress Management",
-    qualification: "MBBS, MSc Psychology",
-    experience: 5,
-    registrationId: "SLMC-12345",
-    workplace: "University Wellness Center",
-    about:
-        "Dedicated to student mental health, stress management, and confidential support sessions. Experienced in one-on-one counselling and campus wellness programs.",
-    profileImage: "",
-};
-
-const MAX_BIO_LENGTH = 500;
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-
-/** Prefer logged-in user display name when available; otherwise dummy name. */
-function readNameFromStorage() {
-    try {
-        const raw = localStorage.getItem("user");
-        if (raw) {
-            const u = JSON.parse(raw);
-            if (u?.name && String(u.name).trim()) return String(u.name).trim();
-        }
-    } catch {
-        /* ignore */
-    }
-    return DUMMY_PROFILE.fullName;
-}
-
-const isValidName = (value) => /^[A-Za-z\s]+$/.test((value || "").trim());
-
 export default function ProfileTab() {
-    const [profile, setProfile] = useState(() => ({
-        ...DUMMY_PROFILE,
-        fullName: readNameFromStorage(),
-    }));
-    const [fieldErrors, setFieldErrors] = useState({ fullName: "", experience: "", about: "" });
 
+    // STATE TO STORE PROFILE DATA
+    const [profile, setProfile] = useState(null);
+    // Logged user from localStorage
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    // LOAD PROFILE FROM BACKEND
+    const loadProfile = async () => {
+
+        try {
+
+            const res = await fetch(
+                `http://localhost:3000/api/counsellor/profile/${user.id}`
+            );
+
+            const data = await res.json();
+
+            setProfile(data);
+
+        } catch (err) {
+            console.error("Failed to load profile", err);
+        }
+    };
+
+    // run when component loads
+    useEffect(() => {
+        loadProfile();
+    }, []);
+
+
+    // HANDLE INPUT CHANGES
+    // Updates profile state when user edits fields
     const handleChange = (e) => {
+
         const { name, value } = e.target;
-        setProfile((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        if (fieldErrors[name]) {
-            setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+
+        if (name === "specialization") return;
+
+        setProfile({
+            ...profile,
+            [name]: value
+        });
+    };
+
+    // UPDATE PROFILE FUNCTION
+    // Sends updated profile data to backend
+    const updateProfile = async () => {
+
+        try {
+
+            const res = await fetch(
+                `http://localhost:3000/api/counsellor/profile/${user.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        fullName: profile.fullName,
+                        specialization: profile.specialization,
+                        qualification: profile.qualification,
+                        experience: Number(profile.experience),
+                        registrationID: profile.registrationId,
+                        workplace: profile.workplace,
+                        about: profile.about
+                    })
+                }
+            );
+
+            const data = await res.json();
+
+            toast.success("Profile updated successfully");
+
+            // reload profile after update
+            loadProfile();
+
+        } catch (err) {
+            console.error("Update failed", err);
         }
     };
 
-    const handleBioChange = (e) => {
-        const value = e.target.value;
-        if (value.length > MAX_BIO_LENGTH) return;
-        setProfile((prev) => ({ ...prev, about: value }));
-        if (fieldErrors.about) setFieldErrors((prev) => ({ ...prev, about: "" }));
-    };
+    // HANDLE PROFILE IMAGE UPLOAD
+    const handleImageChange = async (e) => {
+        const file = e.target.files[0];
 
-    /** Letters and spaces only (no numbers or special characters). */
-    const handleNameChange = (e) => {
-        const filtered = e.target.value.replace(/[^A-Za-z\s]/g, "");
-        setProfile((prev) => ({ ...prev, fullName: filtered }));
-        if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: "" }));
-    };
-
-    /** Whole years, 0–60, integers only. */
-    const handleExperienceChange = (e) => {
-        const v = e.target.value;
-        if (v === "") {
-            setProfile((prev) => ({ ...prev, experience: "" }));
-            if (fieldErrors.experience) setFieldErrors((prev) => ({ ...prev, experience: "" }));
-            return;
-        }
-        const n = parseInt(v, 10);
-        if (Number.isNaN(n)) return;
-        const clamped = Math.max(0, Math.min(60, n));
-        setProfile((prev) => ({ ...prev, experience: clamped }));
-        if (fieldErrors.experience) setFieldErrors((prev) => ({ ...prev, experience: "" }));
-    };
-
-    const validateProfile = () => {
-        const err = {};
-        if (!profile.fullName?.trim()) {
-            err.fullName = "Display name is required.";
-        } else if (!isValidName(profile.fullName)) {
-            err.fullName = "Use letters and spaces only (no numbers or special characters).";
-        }
-        if (profile.experience === "" || profile.experience === null || profile.experience === undefined) {
-            err.experience = "Experience is required.";
-        } else {
-            const n = Number(profile.experience);
-            if (!Number.isInteger(n) || n < 0 || n > 60) {
-                err.experience = "Enter a whole number from 0 to 60 years.";
-            }
-        }
-        const bio = profile.about || "";
-        if (bio.length > MAX_BIO_LENGTH) {
-            err.about = `Bio must be ${MAX_BIO_LENGTH} characters or less.`;
-        }
-        setFieldErrors(err);
-        return Object.keys(err).length === 0;
-    };
-
-    const updateProfile = () => {
-        if (!validateProfile()) {
-            toast.error("Please fix the highlighted fields.");
-            return;
-        }
-        toast.success("Profile updated successfully");
-    };
-
-    const handleImageChange = (e) => {
-        const file = e.target.files?.[0];
         if (!file) return;
 
-        setProfile((prev) => {
-            if (prev.profileImage?.startsWith("blob:")) {
-                URL.revokeObjectURL(prev.profileImage);
+        try {
+            const formData = new FormData();
+            formData.append("profileImage", file);
+
+            const res = await fetch(
+                `http://localhost:3000/api/counsellor/profile-image/${user.id}`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast.error(data.error || "Failed to upload image");
+                return;
             }
-            const url = URL.createObjectURL(file);
-            return { ...prev, profileImage: url };
-        });
-        toast.success("Profile image updated");
-        e.target.value = "";
+
+            setProfile((prev) => ({
+                ...prev,
+                profileImage: data.profileImage
+            }));
+
+            toast.success("Profile image updated");
+        } catch (err) {
+            console.error("Image upload failed", err);
+            toast.error("Image upload failed");
+        }
     };
 
-    const removeProfileImage = () => {
-        setProfile((prev) => {
-            if (prev.profileImage?.startsWith("blob:")) {
-                URL.revokeObjectURL(prev.profileImage);
+    // REMOVE PROFILE IMAGE
+    const removeProfileImage = async () => {
+        try {
+            const res = await fetch(
+                `http://localhost:3000/api/counsellor/profile-image/${user.id}`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast.error(data.error || "Failed to remove image");
+                return;
             }
-            return { ...prev, profileImage: "" };
-        });
-        toast.success("Profile image removed");
+
+            setProfile((prev) => ({
+                ...prev,
+                profileImage: ""
+            }));
+
+            toast.success("Profile image removed");
+        } catch (err) {
+            console.error("Remove image failed", err);
+            toast.error("Remove image failed");
+        }
     };
 
-    const avatarSrc = profile.profileImage
-        ? profile.profileImage
-        : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300";
+
+    if (!profile) return <p>Loading profile...</p>;
 
     return (
         <div className="animate-fadeIn max-w-3xl">
@@ -149,7 +161,15 @@ export default function ProfileTab() {
                 <div className="flex flex-col md:flex-row items-center gap-8 pb-8 border-b border-slate-50">
                     <div className="relative group">
                         <div className="w-32 h-32 rounded-2xl bg-slate-100 overflow-hidden ring-4 ring-slate-50 shadow-lg">
-                            <img className="w-full h-full object-cover" src={avatarSrc} alt="Avatar" />
+                            <img
+                                className="w-full h-full object-cover"
+                                src={
+                                    profile.profileImage
+                                        ? `http://localhost:3000/${profile.profileImage}`
+                                        : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300"
+                                }
+                                alt="Avatar"
+                            />
                         </div>
 
                         <label className="absolute bottom-1 right-1 bg-blue-600 text-white p-2.5 rounded-xl shadow-lg hover:scale-110 transition-all cursor-pointer">
@@ -188,73 +208,57 @@ export default function ProfileTab() {
                     {/* DISPLAY NAME */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Display Name</label>
-                        <input
-                            type="text"
+                        <input type="text"
                             name="fullName"
                             value={profile.fullName}
-                            onChange={handleNameChange}
-                            className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none ${fieldErrors.fullName ? "ring-2 ring-red-200 bg-red-50/50" : ""}`}
-                        />
-                        {fieldErrors.fullName && (
-                            <p className="text-xs font-semibold text-red-500 px-1">{fieldErrors.fullName}</p>
-                        )}
+                            onChange={handleChange}
+                            className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none" />
                     </div>
 
-                    {/* Professional category is assigned — not editable */}
+                    {/* SPECIALIZATION — set at registration / admin; not editable here */}
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Professional Category</label>
                         <input
                             type="text"
                             name="specialization"
-                            readOnly
-                            tabIndex={-1}
                             value={profile.specialization || ""}
-                            className="w-full p-3 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-sm font-bold cursor-not-allowed outline-none"
-                            title="Professional category cannot be changed here"
+                            readOnly
+                            aria-readonly="true"
+                            className="w-full p-3 bg-slate-100 border border-slate-200/80 rounded-xl text-sm font-bold text-slate-700 cursor-default outline-none"
                         />
                     </div>
 
                     {/* EXPERIENCE */}
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Experience (Years)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                            Experience (Years)
+                        </label>
 
                         <input
                             type="number"
                             name="experience"
-                            min={0}
-                            max={60}
-                            step={1}
-                            value={profile.experience === "" ? "" : profile.experience}
-                            onChange={handleExperienceChange}
-                            className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold ${fieldErrors.experience ? "ring-2 ring-red-200 bg-red-50/50" : ""}`}
+                            value={profile.experience || ""}
+                            onChange={handleChange}
+                            className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold"
                         />
-                        {fieldErrors.experience && (
-                            <p className="text-xs font-semibold text-red-500 px-1">{fieldErrors.experience}</p>
-                        )}
                     </div>
 
                     {/* BIO */}
                     <div className="md:col-span-2 space-y-2">
-                        <div className="flex justify-between items-baseline px-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Professional Bio</label>
-                            <span className="text-[10px] font-bold text-slate-400">
-                                {(profile.about || "").length}/{MAX_BIO_LENGTH}
-                            </span>
-                        </div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Professional Bio</label>
                         <textarea
                             rows={4}
                             name="about"
-                            className={`w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none ${fieldErrors.about ? "ring-2 ring-red-200 bg-red-50/50" : ""}`}
+                            className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-100 outline-none"
                             value={profile.about || ""}
-                            onChange={handleBioChange}
-                            maxLength={MAX_BIO_LENGTH}
+                            onChange={handleChange}
                         />
-                        {fieldErrors.about && (
-                            <p className="text-xs font-semibold text-red-500 px-1">{fieldErrors.about}</p>
-                        )}
                     </div>
                 </div>
 
+                {/* ================================
+                    UPDATE BUTTON
+                ================================= */}
                 <button
                     onClick={updateProfile}
                     className="w-full bg-slate-900 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-[0.98]"
