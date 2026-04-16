@@ -4,104 +4,6 @@ import { toast } from "react-toastify";
 import ApproveModel from "../ApproveModel";
 import ConfirmationModel from "../ConfirmationModel";
 
-/** Matches admin Assign Location building list; shown at top of this tab. */
-const COUNSELOR_ASSIGN_LOCATION = {
-    assignLocation: "New Building F1204",
-    locationNote:
-        "Admin-assigned counseling room for this semester. If you temporarily relocate a session, note it in your availability and tell the student at least 24 hours ahead.",
-};
-
-const DUMMY_APPOINTMENTS = [
-    {
-        id: 101,
-        bookingId: "MB-CA-2001",
-        studentId: 501,
-        studentName: "Liam Santos",
-        studentEmail: "liam.santos@student.local",
-        date: "2026-03-29",
-        timeSlot: "09:00 AM - 10:00 AM",
-        status: "Pending",
-        urgency: 8,
-        mood: "anxious",
-        age: 20,
-        contactNumber: "0917123456",
-        guardianPhoneNumber: "0917987654",
-        medicalNotes: "Feels anxious before major exams.",
-        description: "Needs stress management techniques for exam week.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-        assignLocation: COUNSELOR_ASSIGN_LOCATION.assignLocation,
-        locationNote: "Prefer morning slot; whiteboard may be used for grounding exercises.",
-    },
-    {
-        id: 102,
-        bookingId: "MB-CA-2002",
-        studentId: 502,
-        studentName: "Maya Perera",
-        studentEmail: "maya.perera@student.local",
-        date: "2026-03-30",
-        timeSlot: "01:00 PM - 02:00 PM",
-        status: "Confirmed",
-        urgency: 6,
-        mood: "stressed",
-        age: 21,
-        contactNumber: "0918234567",
-        guardianPhoneNumber: "0918345678",
-        medicalNotes: "Reports recurring stress and poor sleep.",
-        description: "Follow-up session after first counseling plan.",
-        studentCancelNote: "I have a conflict with a required class.",
-        counselorCancelNote: "",
-        reportPath: "",
-        assignLocation: COUNSELOR_ASSIGN_LOCATION.assignLocation,
-        locationNote: "",
-    },
-    {
-        id: 103,
-        bookingId: "MB-CA-2003",
-        studentId: 501,
-        studentName: "Liam Santos",
-        studentEmail: "liam.santos@student.local",
-        date: "2026-04-02",
-        timeSlot: "10:00 AM - 11:00 AM",
-        status: "Completed",
-        urgency: 4,
-        mood: "better",
-        age: 20,
-        contactNumber: "0917123456",
-        guardianPhoneNumber: "0917987654",
-        medicalNotes: "Improved coping after breathing exercises.",
-        description: "Previous session notes for continuity.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "",
-        assignLocation: "Main Building A406",
-        locationNote: "One-off session held in alternate room due to maintenance.",
-    },
-    {
-        id: 104,
-        bookingId: "MB-CA-2004",
-        studentId: 503,
-        studentName: "Noah Reyes",
-        studentEmail: "noah.reyes@student.local",
-        date: "2026-04-04",
-        timeSlot: "03:00 PM - 04:00 PM",
-        status: "Confirmed",
-        urgency: 9,
-        mood: "depressed",
-        age: 19,
-        contactNumber: "0918456789",
-        guardianPhoneNumber: "0918567890",
-        medicalNotes: "Reports low mood and fatigue for two weeks.",
-        description: "High-priority check-in requested by student.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-        reportPath: "",
-        assignLocation: COUNSELOR_ASSIGN_LOCATION.assignLocation,
-        locationNote: "Student requested a late afternoon slot; ensure dimmed lights if needed.",
-    },
-];
-
 export default function AppointmentsTab() {
     // Top-level filters and UI states.
     const [activeTab, setActiveTab] = useState("pending");
@@ -115,29 +17,89 @@ export default function AppointmentsTab() {
     const [approvedCancellationIds, setApprovedCancellationIds] = useState([]);
     const [cancelModalAppt, setCancelModalAppt] = useState(null);
     const [cancelNote, setCancelNote] = useState("");
+    const [assignedWorkplace, setAssignedWorkplace] = useState("");
+    const [assignedLocationNote, setAssignedLocationNote] = useState("");
+    const [locationLoading, setLocationLoading] = useState(true);
+    const user = JSON.parse(localStorage.getItem("user"));
 
-    // Load counselor appointments from local dummy source.
+    // Load counselor appointments + assigned location (appointments include assignLocation from join; /location/me is fallback).
     const fetchAppointments = async () => {
+        if (!user?.token) {
+            setAppointments([]);
+            setAssignedWorkplace("");
+            setAssignedLocationNote("");
+            setLoading(false);
+            setLocationLoading(false);
+            return;
+        }
         setLoading(true);
+        setLocationLoading(true);
         try {
-            setAppointments(DUMMY_APPOINTMENTS);
+            const [apptRes, locRes] = await Promise.all([
+                fetch("http://localhost:3000/api/appointments/counselor", {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                }),
+                fetch("http://localhost:3000/api/counsellor/location/me", {
+                    headers: { Authorization: `Bearer ${user.token}` },
+                }),
+            ]);
+
+            let list = [];
+            if (apptRes.ok) {
+                const data = await apptRes.json();
+                list = Array.isArray(data) ? data : [];
+                setAppointments(list);
+            } else {
+                setAppointments([]);
+                toast.error("Failed to load appointments");
+            }
+
+            let wMe = "";
+            let nMe = "";
+            if (locRes.ok) {
+                const loc = await locRes.json();
+                wMe = String(loc.workplace ?? loc.assignLocation ?? "").trim();
+                nMe = String(loc.locationReason ?? loc.locationNote ?? "").trim();
+            }
+            const first = list[0];
+            const wAppt = first ? String(first.assignLocation ?? "").trim() : "";
+            const nAppt = first ? String(first.locationNote ?? "").trim() : "";
+            // Prefer /location/me, then values joined on appointment rows (same data if Scan works).
+            setAssignedWorkplace(wMe || wAppt || "Not Assigned");
+            setAssignedLocationNote(nMe || nAppt);
         } catch (err) {
             console.error("Failed to fetch appointments", err);
             toast.error("Failed to load appointments");
             setAppointments([]);
+            setAssignedWorkplace("Not Assigned");
+            setAssignedLocationNote("");
         } finally {
             setLoading(false);
+            setLocationLoading(false);
         }
     };
 
     useEffect(() => {
         fetchAppointments();
-    }, []);
+    }, [user?.token]);
+
+    // Generic status update request helper.
+    const updateAppointmentStatus = async (appointmentId, status) => {
+        const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/status`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({ status }),
+        });
+        return res;
+    };
 
     // Handles status flow: Pending -> Confirmed -> Completed.
     const handleStatusUpdate = async (appointment) => {
         const current = appointment.status || "";
-        if (current === "Completed") return;
+        if (!user?.token || current === "Completed") return;
         const appointmentId = appointment.id || appointment.ID;
         const nextStatus = current === "Pending" ? "Confirmed" : current === "Confirmed" ? "Completed" : "";
         if (!nextStatus) return;
@@ -150,13 +112,11 @@ export default function AppointmentsTab() {
                 if (!ok) return;
             }
 
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId ? { ...appt, status: nextStatus } : appt
-                )
-            );
-            if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
-                setSelectedAppt((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+            const res = await updateAppointmentStatus(appointmentId, nextStatus);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || `Failed to mark as ${nextStatus.toLowerCase()}`);
+                return;
             }
 
             toast.success(
@@ -164,6 +124,7 @@ export default function AppointmentsTab() {
                     ? "Appointment marked as confirmed"
                     : "Appointment marked as completed"
             );
+            await fetchAppointments();
         } catch (err) {
             console.error("Failed to update appointment status", err);
             toast.error("Something went wrong");
@@ -174,19 +135,20 @@ export default function AppointmentsTab() {
 
     const handleApproveCancellation = async (appointment) => {
         const appointmentId = appointment.id || appointment.ID;
-        if (!appointmentId) return;
+        if (!appointmentId || !user?.token) return;
 
         try {
             setUpdatingId(appointmentId);
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId
-                        ? { ...appt, status: "Cancelled" }
-                        : appt
-                )
-            );
-            if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
-                setSelectedAppt((prev) => (prev ? { ...prev, status: "Cancelled" } : prev));
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/cancellation/approve`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${user.token}`,
+                },
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to approve cancellation");
+                return;
             }
             toast.success("Cancellation approved and slot released");
             setApprovedCancellationIds((prev) => (prev.includes(appointmentId) ? prev : [...prev, appointmentId]));
@@ -202,23 +164,30 @@ export default function AppointmentsTab() {
     const handleCancelByCounselor = async () => {
         if (!cancelModalAppt) return;
         const appointmentId = cancelModalAppt.id || cancelModalAppt.ID;
-        if (!appointmentId) return;
+        if (!appointmentId || !user?.token) return;
         if (!cancelNote.trim()) {
             toast.error("Please add a cancellation note");
             return;
         }
         try {
             setUpdatingId(appointmentId);
-            setAppointments((prev) =>
-                prev.map((appt) =>
-                    (appt.id || appt.ID) === appointmentId
-                        ? { ...appt, status: "Cancelled", counselorCancelNote: cancelNote.trim() }
-                        : appt
-                )
-            );
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/counselor-cancel`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${user.token}`,
+                },
+                body: JSON.stringify({ note: cancelNote.trim() }),
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to cancel appointment");
+                return;
+            }
             toast.success("Appointment cancelled with note");
             setCancelModalAppt(null);
             setCancelNote("");
+            await fetchAppointments();
             if (selectedAppt && (selectedAppt.id || selectedAppt.ID) === appointmentId) {
                 setSelectedAppt({ ...selectedAppt, status: "Cancelled", counselorCancelNote: cancelNote.trim() });
             }
@@ -236,6 +205,13 @@ export default function AppointmentsTab() {
         const [y, m, d] = isoDate.split("-");
         const date = new Date(y, (m || 1) - 1, d || 1);
         return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
+
+    const getReportUrl = (reportPath) => {
+        if (!reportPath) return "";
+        if (/^https?:\/\//i.test(reportPath)) return reportPath;
+        const normalizedPath = reportPath.startsWith("/") ? reportPath : `/${reportPath}`;
+        return `${window.location.origin}${normalizedPath}`;
     };
 
     // Maps numeric urgency to UI label.
@@ -322,7 +298,7 @@ export default function AppointmentsTab() {
 
     return (
         <div className="animate-fadeIn space-y-8">
-            {/* Counselor assigned location + admin note (dummy) */}
+            {/* Counselor assigned location + admin note (from API) */}
             <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-linear-to-br from-indigo-50 via-white to-slate-50 p-5 shadow-sm md:p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="flex min-w-0 gap-4">
@@ -334,7 +310,7 @@ export default function AppointmentsTab() {
                                 Assigned location
                             </p>
                             <p className="mt-1 wrap-break-words text-lg font-black tracking-tight text-slate-900">
-                                {COUNSELOR_ASSIGN_LOCATION.assignLocation}
+                                {locationLoading ? "…" : assignedWorkplace || "Not Assigned"}
                             </p>
                             <p className="mt-2 text-xs font-medium text-slate-500">
                                 Sessions default to this room unless an appointment specifies otherwise below.
@@ -345,7 +321,10 @@ export default function AppointmentsTab() {
                 <div className="mt-5 rounded-xl border border-slate-100 bg-white/90 p-4 shadow-inner">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Note</p>
                     <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600">
-                        {COUNSELOR_ASSIGN_LOCATION.locationNote}
+                        {locationLoading
+                            ? "…"
+                            : assignedLocationNote ||
+                              "No admin note for your location yet. Contact admin if you need a room change."}
                     </p>
                 </div>
             </div>
@@ -562,7 +541,7 @@ export default function AppointmentsTab() {
                                             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Room / venue</p>
                                             <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
                                                 <FaMapPin className="shrink-0 text-indigo-500" />
-                                                {selectedAppt.assignLocation || COUNSELOR_ASSIGN_LOCATION.assignLocation}
+                                                {selectedAppt.assignLocation || assignedWorkplace || "Not Assigned"}
                                             </p>
                                         </div>
                                         <div className="md:col-span-2">
@@ -570,7 +549,8 @@ export default function AppointmentsTab() {
                                             <p className="text-sm leading-relaxed text-slate-600">
                                                 {selectedAppt.locationNote
                                                     ? selectedAppt.locationNote
-                                                    : "No extra location note for this booking."}
+                                                    : assignedLocationNote ||
+                                                      "No extra location note for this booking."}
                                             </p>
                                         </div>
                                     </div>
@@ -668,7 +648,7 @@ export default function AppointmentsTab() {
                                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                     {selectedAppt.reportPath ? (
                                         <a
-                                            href={selectedAppt.reportPath}
+                                            href={`http://localhost:3000/${selectedAppt.reportPath}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex flex-col gap-1 group"

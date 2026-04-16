@@ -165,6 +165,8 @@ func CreateAppointment(c *gin.Context) {
 		return
 	}
 
+	FulfillWaitlistForStudentOnBooking(user.ID, appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
+
 	// 9. Success Response
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Appointment booked successfully",
@@ -223,8 +225,10 @@ func GetBookedSlots(c *gin.Context) {
 
 type counselorAppointmentRow struct {
 	models.Appointment
-	StudentName  string `json:"studentName" gorm:"column:student_name"`
-	StudentEmail string `json:"studentEmail" gorm:"column:student_email"`
+	StudentName    string `json:"studentName" gorm:"column:coalesced_student_name"`
+	StudentEmail   string `json:"studentEmail" gorm:"column:coalesced_student_email"`
+	AssignLocation string `json:"assignLocation" gorm:"column:assign_location"`
+	LocationNote   string `json:"locationNote" gorm:"column:location_note"`
 }
 
 type studentAppointmentRow struct {
@@ -251,10 +255,13 @@ func GetCounselorAppointments(c *gin.Context) {
 		Table("appointments").
 		Select(`
 			appointments.*,
-			COALESCE(NULLIF(users.name, ''), NULLIF(appointments.student_name, ''), 'Unknown Student') AS student_name,
-			COALESCE(NULLIF(users.email, ''), NULLIF(appointments.student_email, ''), 'No email available') AS student_email
+			COALESCE(NULLIF(users.name, ''), NULLIF(appointments.student_name, ''), 'Unknown Student') AS coalesced_student_name,
+			COALESCE(NULLIF(users.email, ''), NULLIF(appointments.student_email, ''), 'No email available') AS coalesced_student_email,
+			COALESCE(ca.workplace, '') AS assign_location,
+			COALESCE(ca.location_reason, '') AS location_note
 		`).
 		Joins("LEFT JOIN users ON users.id = appointments.student_id").
+		Joins(`LEFT JOIN counsellor_applications ca ON ca.user_id = appointments.counsellor_id AND ca.status = 'approved'`).
 		Where("appointments.counsellor_id = ? AND appointments.status <> ?", user.ID, "Deleted").
 		Order("appointments.date ASC, appointments.time_slot ASC").
 		Scan(&appointments).Error
@@ -397,6 +404,7 @@ func DeleteAppointmentForStudent(c *gin.Context) {
 			return
 		}
 
+		PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 		c.JSON(http.StatusOK, gin.H{"message": "Appointment deleted successfully", "status": appointment.Status})
 		return
 	}
@@ -461,6 +469,7 @@ func ApproveCancellationForCounselor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve cancellation"})
 		return
 	}
+	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 	c.JSON(http.StatusOK, gin.H{"message": "Cancellation approved and slot released", "status": appointment.Status})
 }
 
@@ -506,6 +515,8 @@ func CancelAppointmentByCounselor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel appointment"})
 		return
 	}
+
+	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Appointment cancelled successfully",

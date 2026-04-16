@@ -1,15 +1,21 @@
 package controllers
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/models"
+	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+//================ SADHUSHAN'S CONTROLLERS ================//
 
 // APPLY TO BE A COUNSELLOR
 func ApplyCounsellor(c *gin.Context) {
@@ -236,5 +242,158 @@ func RemoveProfileImage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Profile image removed successfully",
+	})
+}
+
+//============= AAISHA'S CONTROLLERS =============//
+
+// GetCounsellorsForLocationAssignment returns approved counselors for admin location assignment.
+func GetCounsellorsForLocationAssignment(c *gin.Context) {
+	var counsellors []models.CounsellorApplication
+	if err := initializers.DB.
+		Where("status = ?", "approved").
+		Order("full_name ASC").
+		Find(&counsellors).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load counsellors"})
+		return
+	}
+	if counsellors == nil {
+		counsellors = []models.CounsellorApplication{}
+	}
+	c.JSON(http.StatusOK, counsellors)
+}
+
+// AssignCounsellorLocation updates assigned workplace/location reason by counsellor user id.
+func AssignCounsellorLocation(c *gin.Context) {
+	userIDStr := c.Param("userId")
+	targetUserID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid counsellor id"})
+		return
+	}
+
+	var counsellor models.CounsellorApplication
+	if err := initializers.DB.
+		Where("user_id = ? AND status = ?", uint(targetUserID), "approved").
+		First(&counsellor).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Counsellor not found"})
+		return
+	}
+
+	var input struct {
+		Workplace      string `json:"workplace"`
+		LocationReason string `json:"locationReason"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	workplace := strings.TrimSpace(input.Workplace)
+	if workplace == "" || strings.EqualFold(workplace, "not assigned") {
+		workplace = "Not Assigned"
+	}
+	previousWorkplace := strings.TrimSpace(counsellor.Workplace)
+	previousWasAssigned := previousWorkplace != "" && !strings.EqualFold(previousWorkplace, "not assigned")
+
+	// One physical location per room: no two approved counsellors may share the same workplace (except unassigned).
+	if workplace != "Not Assigned" {
+		var taken int64
+		if err := initializers.DB.Model(&models.CounsellorApplication{}).
+			Where("status = ? AND workplace = ? AND user_id != ?", "approved", workplace, uint(targetUserID)).
+			Count(&taken).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to validate location"})
+			return
+		}
+		if taken > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "This location is already assigned to another counselor"})
+			return
+		}
+	}
+
+	counsellor.Workplace = workplace
+	counsellor.LocationReason = input.LocationReason
+	if err := initializers.DB.Save(&counsellor).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign location"})
+		return
+	}
+
+	recipientEmail := strings.TrimSpace(counsellor.Email)
+	var user models.User
+	if err := initializers.DB.Where("id = ?", counsellor.UserId).First(&user).Error; err == nil && strings.TrimSpace(user.Email) != "" {
+		recipientEmail = strings.TrimSpace(user.Email)
+	}
+
+	changed := !strings.EqualFold(previousWorkplace, workplace)
+	if changed {
+		if previousWasAssigned {
+			if err := email.SendCounsellorLocationChanged(recipientEmail, counsellor.FullName, workplace, input.LocationReason); err != nil {
+				log.Printf("location change email to counsellor %d failed: %v", counsellor.UserId, err)
+			}
+		} else {
+			if err := email.SendCounsellorLocationAssigned(recipientEmail, counsellor.FullName, workplace, input.LocationReason); err != nil {
+				log.Printf("location assign email to counsellor %d failed: %v", counsellor.UserId, err)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Location assigned successfully",
+		"data":    counsellor,
+	})
+}
+
+// GetMyAssignedLocation returns the logged-in user's assigned workplace and location note (approved counsellor only).
+func GetMyAssignedLocation(c *gin.Context) {
+	userIDValue, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var userID uint
+	switch v := userIDValue.(type) {
+	case float64:
+		userID = uint(v)
+	case uint:
+		userID = v
+	case uint64:
+		userID = uint(v)
+	case int:
+		userID = uint(v)
+	case int64:
+		userID = uint(v)
+	case string:
+		parsed, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+			return
+		}
+		userID = uint(parsed)
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+			return
+		}
+		userID = uint(parsed)
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var counsellor models.CounsellorApplication
+	if err := initializers.DB.
+		Where("user_id = ? AND status = ?", userID, "approved").
+		First(&counsellor).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Counsellor profile not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"workplace":        counsellor.Workplace,
+		"locationReason":   counsellor.LocationReason,
+		"assignLocation":   counsellor.Workplace,
+		"locationNote":     counsellor.LocationReason,
 	})
 }

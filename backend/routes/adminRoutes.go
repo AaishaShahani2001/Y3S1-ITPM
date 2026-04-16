@@ -15,6 +15,8 @@ func AdminRoutes(r *gin.Engine) {
 
 	admin.GET("/applications", controllers.GetCounsellorApplications)
 
+	admin.GET("/appointments", controllers.GetAllAppointmentsForAdmin)
+
 	admin.PUT("/applications/:id/approve", controllers.ApproveCounsellor)
 
 	admin.PUT("/applications/:id/reject", controllers.RejectCounsellor)
