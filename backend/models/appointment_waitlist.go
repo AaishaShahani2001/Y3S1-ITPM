@@ -14,6 +14,7 @@ type AppointmentWaitlist struct {
 	CounsellorID uint       `json:"counsellorId" gorm:"not null;index"`
 	Date         string     `json:"date" gorm:"not null"`
 	TimeSlot     string     `json:"timeSlot" gorm:"not null"`
+	Urgency      int        `json:"urgency"`
 	Status       string     `json:"status" gorm:"default:'waiting'"` // waiting | notified | fulfilled | cancelled
 	NotifiedAt   *time.Time `json:"notifiedAt,omitempty"`
 }
