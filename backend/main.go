@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/routes"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 func init() {
 	initializers.LoadEnvVariables()
+	email.Init()
 	initializers.ConnectDB()
 	initializers.SyncDatabase()
 }

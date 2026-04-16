@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/models"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -21,10 +23,27 @@ func PromoteNextWaitlistForSlot(counsellorID uint, date, timeSlot string) {
 	if err != nil {
 		return
 	}
+
+	var student models.User
+	if err := initializers.DB.First(&student, next.StudentID).Error; err != nil {
+		log.Printf("waitlist promote: load student %d: %v", next.StudentID, err)
+	}
+	counselorName := ""
+	var ca models.CounsellorApplication
+	if err := initializers.DB.Where("user_id = ? AND status = ?", counsellorID, "approved").First(&ca).Error; err == nil {
+		counselorName = ca.FullName
+	}
+
+	if err := email.SendWaitlistSlotOpened(student.Email, student.Name, counselorName, date, timeSlot); err != nil {
+		log.Printf("waitlist notify email to %q: %v", student.Email, err)
+	}
+
 	now := time.Now()
 	next.Status = "notified"
 	next.NotifiedAt = &now
-	_ = initializers.DB.Save(&next).Error
+	if err := initializers.DB.Save(&next).Error; err != nil {
+		log.Printf("waitlist promote: save entry %d: %v", next.ID, err)
+	}
 }
 
 // FulfillWaitlistForStudentOnBooking marks waitlist rows fulfilled after a successful booking.
