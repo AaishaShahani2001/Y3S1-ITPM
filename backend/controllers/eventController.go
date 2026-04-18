@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/models"
+	"backend/utils"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -23,6 +26,7 @@ type RegisterInput struct {
 	Degree     string `json:"degree"`
 	Gender     string `json:"gender"`
 }
+
 // =======================
 // REGISTER EVENT
 // =======================
@@ -30,12 +34,13 @@ func RegisterEvent(c *gin.Context) {
 
 	var input RegisterInput
 
+	// 🔥 VALIDATE INPUT
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// GET USER ID
+	// 🔥 GET USER ID FROM TOKEN
 	userIDValue, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -56,55 +61,57 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// CHECK DUPLICATE
+	// 🔥 CHECK DUPLICATE REGISTRATION
 	var existing models.Registration
-
 	err := initializers.DB.
 		Where("user_id = ? AND event_id = ?", userID, input.EventID).
 		First(&existing).Error
 
-	if err == nil {
+	if err == nil && existing.ID != 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "You have already registered for this event",
 		})
 		return
 	}
 
+	// 🔥 GET EVENT (SAFE)
+	var event models.Event
+	if err := initializers.DB.First(&event, input.EventID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
 
-// GET EVENT
-var event models.Event
-initializers.DB.First(&event, input.EventID)
+	// 🔥 COUNT CONFIRMED ONLY
+	var confirmedCount int64
+	initializers.DB.
+		Model(&models.Registration{}).
+		Where("event_id = ? AND status = ?", input.EventID, "confirmed").
+		Count(&confirmedCount)
 
-// COUNT CONFIRMED ONLY
-var confirmedCount int64
-initializers.DB.
-	Model(&models.Registration{}).
-	Where("event_id = ? AND status = ?", input.EventID, "confirmed").
-	Count(&confirmedCount)
+	// 🔥 DECIDE STATUS
+	status := "confirmed"
+	if int(confirmedCount) >= event.Capacity {
+		status = "waitlist"
+	}
 
-// DECIDE STATUS
-status := "confirmed"
-if int(confirmedCount) >= event.Capacity {
-	status = "waitlist"
-}
-
-// ✅ CREATE REGISTRATION
-reg := models.Registration{
-	UserID:     userID,
-	EventID:    uint(input.EventID),
-	Name:       input.Name,
-	Email:      input.Email,
-	Phone:      input.Phone,
-	University: input.University,
-	Faculty:    input.Faculty,
-	Level:      input.Level,
-	Degree:     input.Degree,
-	Gender:     input.Gender,
-	Status:     status, 
-}
+	// 🔥 CREATE REGISTRATION
+	reg := models.Registration{
+		UserID:     userID,
+		EventID:    uint(input.EventID),
+		Name:       input.Name,
+		Email:      input.Email,
+		Phone:      input.Phone,
+		University: input.University,
+		Faculty:    input.Faculty,
+		Level:      input.Level,
+		Degree:     input.Degree,
+		Gender:     input.Gender,
+		Status:     status,
+	}
 
 	result := initializers.DB.Create(&reg)
 
+	// 🔥 CHECK DB ERROR FIRST
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Registration failed",
@@ -112,8 +119,44 @@ reg := models.Registration{
 		return
 	}
 
+	// 🔥 GENERATE QR
+	qrBase64 := ""
+	qrURL := ""
+
+	fmt.Println(qrBase64)
+
+	if reg.Status == "confirmed" {
+
+		base64QR, urlQR, err := utils.GenerateQR(reg.ID, reg.EventID, reg.UserID)
+
+		if err != nil {
+			fmt.Println("QR ERROR:", err)
+		} else {
+			qrBase64 = base64QR
+			qrURL = urlQR
+
+			// ✅ SAVE URL TO DB (for frontend)
+			reg.QR = qrURL
+			initializers.DB.Save(&reg)
+		}
+	}
+
+	// 🔥 SEND EMAIL
+	go email.SendEventRegistrationEmail(
+		reg.Email,
+		reg.Name,
+		event.Title,
+		event.Date,
+		event.Location,
+		qrURL,
+		reg.Status,
+	)
+
+	// 🔥 RESPONSE
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Event registration successful",
+		"status":  reg.Status,
+		"qr":      qrURL, // ✅ FRONTEND USE URL
 	})
 }
 
@@ -177,11 +220,11 @@ func GetEventAnalytics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total":  total,
+		"total":    total,
 		"waitlist": waitlist,
-		"male":   male,
-		"female": female,
-		"data":   registrations,
+		"male":     male,
+		"female":   female,
+		"data":     registrations,
 	})
 }
 
@@ -207,10 +250,6 @@ func CreateEvent(c *gin.Context) {
 		c.SaveUploadedFile(file, imagePath)
 
 	}
-
-	
-
-
 
 	event := models.Event{
 		Title:       title,
@@ -248,15 +287,15 @@ func GetEvents(c *gin.Context) {
 			Count(&count)
 
 		result = append(result, gin.H{
-			"ID":         e.ID,
-			"Title":      e.Title,
+			"ID":          e.ID,
+			"Title":       e.Title,
 			"Description": e.Description,
-			"Date":       e.Date,
-			"Time":       e.Time,
-			"Location":   e.Location,
-			"Capacity":   e.Capacity,
-			"Image":      e.Image,
-			"Registered": count, 
+			"Date":        e.Date,
+			"Time":        e.Time,
+			"Location":    e.Location,
+			"Capacity":    e.Capacity,
+			"Image":       e.Image,
+			"Registered":  count,
 		})
 	}
 
@@ -264,7 +303,7 @@ func GetEvents(c *gin.Context) {
 }
 
 // =======================
-// DELETE EVENT 
+// DELETE EVENT
 // =======================
 func DeleteEvent(c *gin.Context) {
 	idParam := c.Param("id")
@@ -342,18 +381,17 @@ func GetEventByID(c *gin.Context) {
 		Count(&count)
 
 	c.JSON(http.StatusOK, gin.H{
-		"ID":         event.ID,
-		"Title":      event.Title,
+		"ID":          event.ID,
+		"Title":       event.Title,
 		"Description": event.Description,
-		"Date":       event.Date,
-		"Time":       event.Time,
-		"Location":   event.Location,
-		"Capacity":   event.Capacity,
-		"Image":      event.Image,
-		"Registered": count, 
+		"Date":        event.Date,
+		"Time":        event.Time,
+		"Location":    event.Location,
+		"Capacity":    event.Capacity,
+		"Image":       event.Image,
+		"Registered":  count,
 	})
 }
-
 
 // =======================
 // GET STUDENT EVENTS
@@ -385,17 +423,19 @@ func GetStudentEvents(c *gin.Context) {
 
 	for _, r := range registrations {
 		response = append(response, gin.H{
-			"id": r.ID, // ✅ registration ID
-			"title": r.Event.Title,
-			"date": r.Event.Date,
+			"id":       r.ID,
+			"title":    r.Event.Title,
+			"date":     r.Event.Date,
 			"location": r.Event.Location,
-			"image": r.Event.Image,
-			"status": r.Status,
+			"image":    r.Event.Image,
+			"status":   r.Status,
+			"qr":       r.QR, // ✅ ADD THIS LINE ONLY
 		})
 	}
 
 	c.JSON(200, response)
 }
+
 // =======================
 // DELETE REGISTRATION
 // =======================
@@ -432,6 +472,35 @@ func DeleteRegistration(c *gin.Context) {
 		// PROMOTE
 		waitlist.Status = "confirmed"
 		initializers.DB.Save(&waitlist)
+
+		// GENERATE QR
+		qrBase64 := ""
+		qrURL := ""
+
+		base64QR, urlQR, err := utils.GenerateQR(waitlist.ID, waitlist.EventID, waitlist.UserID)
+		if err == nil {
+			qrBase64 = base64QR
+			qrURL = urlQR
+
+			// SAVE QR URL TO DB
+			waitlist.QR = qrURL
+			initializers.DB.Save(&waitlist)
+		}
+
+		// GET EVENT DETAILS
+		var event models.Event
+		initializers.DB.First(&event, waitlist.EventID)
+
+		// SEND PROMOTION EMAIL
+		go email.SendEventRegistrationEmail(
+			waitlist.Email,
+			waitlist.Name,
+			event.Title,
+			event.Date,
+			event.Location,
+			qrBase64,
+			"confirmed",
+		)
 	}
 
 	c.JSON(200, gin.H{"message": "Deleted and waitlist updated"})
