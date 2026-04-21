@@ -146,3 +146,7 @@ backend/uploads/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+node_modules/
+dist/
+.env
