@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/routes"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 func init() {
 	initializers.LoadEnvVariables()
+	email.Init()
 	initializers.ConnectDB()
 	initializers.SyncDatabase()
 }
@@ -41,5 +43,5 @@ func main() {
 	if port == "" {
 		port = "3000"
 	}
-	r.Run(":" + port)
+	r.Run("0.0.0.0:" + port)
 }

@@ -37,12 +37,6 @@ const services = [
     color: "bg-purple-50 text-purple-600",
   },
   {
-    title: "Individual Counselling",
-    description: "One-on-one counselling sessions to support students with personal, academic, or emotional challenges.",
-    icon: FaUserMd,
-    color: "bg-emerald-50 text-emerald-600",
-  },
-  {
     title: "Crisis Support",
     description: "Immediate support and guidance for students facing urgent or critical situations.",
     icon: FaHeartbeat,

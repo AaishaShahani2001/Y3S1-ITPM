@@ -1,9 +1,11 @@
 package controllers
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/models"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -291,6 +293,8 @@ func AssignCounsellorLocation(c *gin.Context) {
 	if workplace == "" || strings.EqualFold(workplace, "not assigned") {
 		workplace = "Not Assigned"
 	}
+	previousWorkplace := strings.TrimSpace(counsellor.Workplace)
+	previousWasAssigned := previousWorkplace != "" && !strings.EqualFold(previousWorkplace, "not assigned")
 
 	// One physical location per room: no two approved counsellors may share the same workplace (except unassigned).
 	if workplace != "Not Assigned" {
@@ -312,6 +316,25 @@ func AssignCounsellorLocation(c *gin.Context) {
 	if err := initializers.DB.Save(&counsellor).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign location"})
 		return
+	}
+
+	recipientEmail := strings.TrimSpace(counsellor.Email)
+	var user models.User
+	if err := initializers.DB.Where("id = ?", counsellor.UserId).First(&user).Error; err == nil && strings.TrimSpace(user.Email) != "" {
+		recipientEmail = strings.TrimSpace(user.Email)
+	}
+
+	changed := !strings.EqualFold(previousWorkplace, workplace)
+	if changed {
+		if previousWasAssigned {
+			if err := email.SendCounsellorLocationChanged(recipientEmail, counsellor.FullName, workplace, input.LocationReason); err != nil {
+				log.Printf("location change email to counsellor %d failed: %v", counsellor.UserId, err)
+			}
+		} else {
+			if err := email.SendCounsellorLocationAssigned(recipientEmail, counsellor.FullName, workplace, input.LocationReason); err != nil {
+				log.Printf("location assign email to counsellor %d failed: %v", counsellor.UserId, err)
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
