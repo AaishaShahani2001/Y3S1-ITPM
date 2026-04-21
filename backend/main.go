@@ -1,8 +1,10 @@
 package main
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/routes"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -11,6 +13,7 @@ import (
 
 func init() {
 	initializers.LoadEnvVariables()
+	email.Init()
 	initializers.ConnectDB()
 	initializers.SyncDatabase()
 }
@@ -35,6 +38,10 @@ func main() {
 	routes.SetupRoutes(r)
 	routes.EventRoutes(r)
 
-
-	r.Run()
+	// Default :3000 so it matches the frontend API base (http://localhost:3000). Override with PORT in .env.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("0.0.0.0:" + port)
 }

@@ -4,6 +4,7 @@ import {
   FaUserCheck,
   FaClipboardList,
   FaHandsHelping,
+  FaArrowRight,
 } from "react-icons/fa";
 
 export default function HowWeWork() {
@@ -76,6 +77,13 @@ export default function HowWeWork() {
               <p className="text-slate-600 text-sm leading-relaxed px-2">
                 {step.description}
               </p>
+
+              {/* Direction Arrow Between Steps */}
+              {index < steps.length - 1 && (
+                <div className="hidden md:flex absolute top-10 -right-9 items-center justify-center w-11 h-11 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200/70 text-white z-20 ring-2 ring-white/90 group-hover:scale-110 transition-transform duration-300">
+                  <FaArrowRight className="text-sm drop-shadow-sm" />
+                </div>
+              )}
             </div>
           ))}
 

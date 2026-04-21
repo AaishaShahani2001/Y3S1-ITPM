@@ -1,8 +1,35 @@
 import React from "react";
 import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn } from "react-icons/fa";
-import CTA from "./CTA";
+import logo from "../assets/Logo.png";
 
 export default function Footer() {
+  const socialLinks = [
+    {
+      name: "Facebook",
+      Icon: FaFacebookF,
+      href: "#",
+      hoverClass: "hover:bg-[#1877F2] hover:text-white",
+    },
+    {
+      name: "Twitter",
+      Icon: FaTwitter,
+      href: "#",
+      hoverClass: "hover:bg-[#1DA1F2] hover:text-white",
+    },
+    {
+      name: "Instagram",
+      Icon: FaInstagram,
+      href: "#",
+      hoverClass: "hover:bg-gradient-to-br hover:from-[#F58529] hover:via-[#DD2A7B] hover:to-[#8134AF] hover:text-white",
+    },
+    {
+      name: "LinkedIn",
+      Icon: FaLinkedinIn,
+      href: "#",
+      hoverClass: "hover:bg-[#0A66C2] hover:text-white",
+    },
+  ];
+
   return (
     <footer className="bg-transparent pt-32 relative overflow-hidden">
 
@@ -14,8 +41,9 @@ export default function Footer() {
 
         {/* BRAND / CONTACT */}
         <div>
-          <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
-            🎓 <span className="text-blue-600">MindBridge</span>
+          <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+            <img src={logo} alt="MindBridge logo" className="w-12 h-12 rounded-xl object-cover shadow-lg shadow-blue-200/60" />
+            <span className="text-blue-600">MindBridge</span>
           </h3>
           <p className="text-sm leading-relaxed mb-6">
             Empowering university students with professional wellbeing support,
@@ -23,7 +51,7 @@ export default function Footer() {
           </p>
           <div className="space-y-3 text-sm font-medium">
             <p className="flex items-center gap-2">📍 <span className="text-slate-800">Colombo, Sri Lanka</span></p>
-            <p className="flex items-center gap-2">📧 <span className="text-slate-800">support@unicare.lk</span></p>
+            <p className="flex items-center gap-2">📧 <span className="text-slate-800">support@mindbridge.lk</span></p>
             <p className="flex items-center gap-2">📞 <span className="text-slate-800">+94 77 123 4567</span></p>
           </div>
         </div>
@@ -70,8 +98,13 @@ export default function Footer() {
           </div>
 
           <div className="flex gap-4">
-            {[FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn].map((Icon, idx) => (
-              <a key={idx} href="#" className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
+            {socialLinks.map(({ name, Icon, href, hoverClass }) => (
+              <a
+                key={name}
+                href={href}
+                aria-label={name}
+                className={`w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center transition-all duration-300 ${hoverClass}`}
+              >
                 <Icon />
               </a>
             ))}
@@ -81,7 +114,7 @@ export default function Footer() {
 
       {/* BOTTOM BAR */}
       <div className="bg-white/40 backdrop-blur-md border-t border-slate-100 py-6 text-center text-sm text-slate-500">
-        <p>© {new Date().getFullYear()} UniCare. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} MindBridge. All rights reserved.</p>
       </div>
     </footer>
   );

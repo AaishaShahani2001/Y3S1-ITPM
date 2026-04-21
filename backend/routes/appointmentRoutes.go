@@ -11,6 +11,11 @@ func AppointmentRoutes(router *gin.Engine) {
 
 	appointment := router.Group("/api/appointments")
 	{
+		appointment.POST("/waitlist", middleware.RequireAuth, controllers.JoinAppointmentWaitlist)
+		appointment.GET("/waitlist/student", middleware.RequireAuth, controllers.GetStudentWaitlist)
+		appointment.GET("/waitlist/counselor", middleware.RequireAuth, controllers.GetCounselorWaitlist)
+		appointment.DELETE("/waitlist/:id", middleware.RequireAuth, controllers.LeaveAppointmentWaitlist)
+
 		appointment.POST("/create", middleware.RequireAuth, controllers.CreateAppointment)
 		appointment.GET("/booked-slots", controllers.GetBookedSlots)
 		appointment.GET("/counselor", middleware.RequireAuth, controllers.GetCounselorAppointments)

@@ -75,9 +75,13 @@ export default function Auth() {
           token: res.data.token,
         })
       );
-      // Redirect to home page
       setTimeout(() => {
-        navigate("/");
+        const redirect = localStorage.getItem("redirectAfterLogin");
+        if (redirect === "booking-step3" || redirect === "booking-step4") {
+          navigate("/book-appointment");
+        } else {
+          navigate("/");
+        }
       }, 1000);
 
     } catch (err) {
@@ -87,7 +91,7 @@ export default function Auth() {
 
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-blue-100 bg-linear-to-br from-blue-50 to-blue-200 flex-col h-screen font-sans">
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-[#fdf7ea] via-[#f6ecd7] to-[#f1e3c8] flex-col h-screen font-sans">
       <div className={`relative bg-white rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden w-212.5 max-w-full min-h-162.5 ${isSignUp ? "active" : ""}`} id="container">
 
         {/* Sign Up Form */}
