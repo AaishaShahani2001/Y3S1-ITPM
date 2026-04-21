@@ -16,6 +16,8 @@ func EventRoutes(r *gin.Engine) {
 	auth.POST("/events/register", controllers.RegisterEvent)
 	auth.GET("/student/events", controllers.GetStudentEvents)
 	auth.DELETE("/registration/:id", controllers.DeleteRegistration)
+	auth.POST("/events/scan", controllers.ScanAttendance)
+	
 
 	// 🔥 PUBLIC ROUTES
 	r.GET("/api/events/registrations", controllers.GetRegistrations)

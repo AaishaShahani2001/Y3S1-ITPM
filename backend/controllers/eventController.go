@@ -191,10 +191,16 @@ func GetRegistrationsByEvent(c *gin.Context) {
 // =======================
 func GetEventAnalytics(c *gin.Context) {
 
-	id := c.Param("id")
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid event ID"})
+		return
+	}
+	eventID := uint(id)
 
 	var registrations []models.Registration
-	initializers.DB.Where("event_id = ?", id).Find(&registrations)
+	initializers.DB.Where("event_id = ?", eventID).Find(&registrations)
 
 	total := len(registrations)
 
@@ -220,11 +226,11 @@ func GetEventAnalytics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total":    total,
-		"waitlist": waitlist,
-		"male":     male,
-		"female":   female,
-		"data":     registrations,
+		"total":         total,
+		"waitlist":      waitlist,
+		"male":          male,
+		"female":        female,
+		"registrations": registrations, 
 	})
 }
 
@@ -504,4 +510,78 @@ func DeleteRegistration(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Deleted and waitlist updated"})
+}
+
+
+func ScanQR(c *gin.Context) {
+
+	var input struct {
+		ID      uint `json:"id"`
+		EventID uint `json:"event_id"`
+		UserID  uint `json:"user_id"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid QR"})
+		return
+	}
+
+	var reg models.Registration
+
+	err := initializers.DB.
+		Where("id = ? AND event_id = ? AND user_id = ?", input.ID, input.EventID, input.UserID).
+		First(&reg).Error
+
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	// 🚫 prevent duplicate scan
+	if reg.Attended {
+		c.JSON(400, gin.H{"error": "Already scanned"})
+		return
+	}
+
+	reg.Attended = true
+	initializers.DB.Save(&reg)
+
+	c.JSON(200, gin.H{
+		"message": "Attendance marked",
+		"name":    reg.Name,
+	})
+}
+
+func ScanAttendance(c *gin.Context) {
+
+	var body struct {
+		RegistrationID uint `json:"registration_id"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var reg models.Registration
+
+	// 🔍 FIND REGISTRATION
+	if err := initializers.DB.First(&reg, body.RegistrationID).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	// 🚫 PREVENT DOUBLE SCAN
+	if reg.Attended {
+		c.JSON(400, gin.H{"message": "Already scanned"})
+		return
+	}
+
+	// ✅ MARK ATTENDED
+	reg.Attended = true
+	initializers.DB.Save(&reg)
+
+	c.JSON(200, gin.H{
+		"message": "Attendance marked successfully",
+	})
 }
