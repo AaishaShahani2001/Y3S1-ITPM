@@ -31,12 +31,7 @@ import MyEvents from "./pages/student/MyEvents";
 export default function App() {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col relative overflow-x-hidden">
-      {/* Global Background Decorations */}
-      <div className="fixed -top-24 -left-24 w-96 h-96 bg-blue-100/50 rounded-full blur-3xl pointer-events-none z-0 animate-pulse-slow"></div>
-      <div className="fixed top-1/2 -right-24 w-80 h-80 bg-emerald-100/40 rounded-full blur-3xl pointer-events-none z-0"></div>
-      <div className="fixed -bottom-24 left-1/4 w-120 h-120 bg-indigo-50/60 rounded-full blur-3xl pointer-events-none z-0"></div>
-
-
+      
       {/* NAVBAR */}
       <Navbar />
 

@@ -3,17 +3,20 @@ import {
   FaThLarge,
   FaCalendarCheck,
   FaFileAlt,
-  FaCog,
   FaSignOutAlt,
   FaBell,
   FaSearch,
+  FaUserCircle,
 } from "react-icons/fa";
+
+const API_BASE = "http://localhost:3000";
 
 import MyEvents from "./MyEvents";
 import AppointmentsTab from "../../components/student/AppointmentsTab";
 import MyWaitListTab from "../../components/student/MyWaitListTab";
 import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 import MyReportView from "../../components/student/MyReportView";
+import OverviewTab from "../../components/student/OverviewTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaThLarge /> },
@@ -21,7 +24,6 @@ const TABS = [
   { id: "waitlist", label: "Wait List", icon: <FaCalendarCheck /> },
   { id: "treatment", label: "Treatment Plan", icon: <FaCalendarCheck /> },
   { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
-  { id: "settings", label: "Settings", icon: <FaCog /> },
   { id: "events", label: "My Events", icon: <FaCalendarCheck /> },
 ];
 
@@ -29,6 +31,10 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [user, setUser] = useState(null);
   const [reportUnlocked, setReportUnlocked] = useState(false);
+  const [headerProfile, setHeaderProfile] = useState({
+    displayName: "",
+    subtitle: "Student",
+  });
 
   const handleViewReport = () => {
     setReportUnlocked(true);
@@ -36,7 +42,14 @@ export default function StudentDashboard() {
   };
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
+    let raw;
+    try {
+      raw = localStorage.getItem("user");
+    } catch {
+      window.location.href = "/login";
+      return;
+    }
+    const storedUser = raw ? JSON.parse(raw) : null;
 
     if (!storedUser?.token) {
       window.location.href = "/login";
@@ -44,6 +57,37 @@ export default function StudentDashboard() {
     }
 
     setUser(storedUser);
+    setHeaderProfile((prev) => ({
+      ...prev,
+      displayName: storedUser.name || "",
+    }));
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/validate`, {
+          headers: { Authorization: `Bearer ${storedUser.token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const u = data.user;
+        if (!u || cancelled) return;
+        const roleLabel =
+          typeof u.role === "string" && u.role
+            ? u.role.charAt(0).toUpperCase() + u.role.slice(1)
+            : "Student";
+        setHeaderProfile({
+          displayName: u.name || storedUser.name || "Student",
+          subtitle: roleLabel,
+        });
+      } catch {
+        /* keep name from localStorage */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleLogout = () => {
@@ -88,12 +132,43 @@ export default function StudentDashboard() {
       </aside>
 
       {/* MAIN */}
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col overflow-x-hidden">
 
-        {/* HEADER */}
-        <header className="h-16 bg-white flex justify-between items-center px-6">
-          <input placeholder="Search..." className="border px-3 py-1 rounded" />
-          <div>{user?.name}</div>
+        {/* HEADER — same pattern as CounselorDashboard (name + role; no student profile image in API) */}
+        <header className="h-16 bg-white border-b border-slate-100 px-6 md:px-10 flex items-center justify-between sticky top-0 z-10">
+          <div className="relative hidden md:block w-80">
+            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+            <input
+              type="text"
+              placeholder="Search appointments, resources..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-5 ml-auto md:ml-0">
+            <button
+              type="button"
+              className="relative w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all"
+              aria-label="Notifications"
+            >
+              <FaBell className="text-sm" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full border-2 border-white" />
+            </button>
+            <div className="h-8 w-px bg-slate-100 mx-1 hidden md:block" />
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden md:block min-w-0">
+                <p className="text-xs font-black tracking-tight truncate max-w-50">
+                  {headerProfile.displayName || user?.name || "Student"}
+                </p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-50">
+                  {headerProfile.subtitle}
+                </p>
+              </div>
+              <div className="w-8 h-8 shrink-0 rounded-lg bg-slate-200 overflow-hidden ring-2 ring-slate-50 ring-offset-1 flex items-center justify-center">
+                <FaUserCircle className="text-2xl text-slate-500" aria-hidden />
+              </div>
+            </div>
+          </div>
         </header>
 
         {/* CONTENT */}
@@ -110,9 +185,7 @@ export default function StudentDashboard() {
             <MyReportView reportUnlocked={reportUnlocked} />
           )}
 
-          {activeTab === "overview" && <p>Overview coming soon...</p>}
-          
-          {activeTab === "settings" && <p>Settings coming soon...</p>}
+          {activeTab === "overview" && <OverviewTab />}
 
         </div>
       </main>

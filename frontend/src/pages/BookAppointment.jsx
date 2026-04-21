@@ -1,58 +1,42 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { toast } from "react-toastify";
 import {
   FaSmile, FaMeh, FaFrown, FaAngry, FaTired, FaBrain,
   FaStar, FaArrowRight, FaArrowLeft, FaCheckCircle,
   FaExclamationCircle, FaUserMd, FaCalendarAlt, FaClock,
-  FaMapMarkerAlt, FaBriefcase, FaGraduationCap
+  FaMapMarkerAlt, FaBriefcase, FaGraduationCap, FaRobot
 } from "react-icons/fa";
+import { toast } from "react-toastify";
+
+const API_BASE = "http://localhost:3000";
+
+/** Normalize Sri Lanka mobile to 10 digits starting with 0 (e.g. 077xxxxxxx). */
+function normalizeLKPhone(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  if (d.length === 10 && d.startsWith("0")) return d;
+  if (d.length === 9 && d.startsWith("7")) return `0${d}`;
+  if (d.length === 11 && d.startsWith("94")) return `0${d.slice(2)}`;
+  if (d.length === 12 && d.startsWith("094")) return `0${d.slice(3)}`;
+  if (d.length === 13 && d.startsWith("0094")) return `0${d.slice(4)}`;
+  return null;
+}
 
 const MOODS = [
-  { id: "anxiety", label: "Anxiousness", icon: <FaBrain className="text-blue-500" />, suggest: "Academic Support" },
-  { id: "depression", label: "Sadness", icon: <FaFrown className="text-indigo-500" />, suggest: "Mental Health Specialist" },
-  { id: "stress", label: "Stress", icon: <FaTired className="text-orange-500" />, suggest: "Stress Management" },
-  { id: "anger", label: "Anger", icon: <FaAngry className="text-red-500" />, suggest: "Emotional Regulation Expert" },
-  { id: "neutral", label: "Neutral", icon: <FaMeh className="text-gray-500" />, suggest: "Personal Development" },
+  { label: "Happy", icon: <FaSmile />, value: "happy", color: "bg-green-100 text-green-600" },
+  { label: "Neutral", icon: <FaMeh />, value: "neutral", color: "bg-gray-100 text-gray-600" },
+  { label: "Sad", icon: <FaFrown />, value: "sad", color: "bg-blue-100 text-blue-600" },
+  { label: "Stressed", icon: <FaTired />, value: "stressed", color: "bg-yellow-100 text-yellow-600" },
+  { label: "Angry", icon: <FaAngry />, value: "angry", color: "bg-red-100 text-red-600" }
 ];
 
-const COUNSELLORS = [
+// Keep static fallback in case backend fails or returns empty during demo
+const FALLBACK_COUNSELLORS = [
   { id: "1", name: "Dr. Nethmi Perera", category: "Stress Management", experience: 5, rating: 4.8, image: "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300", workplace: "New Building F1301" },
   { id: "2", name: "Mr. Dilan Fernando", category: "Academic Support", experience: 3, rating: 4.6, image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300&h=300", workplace: "Main Building A202" },
   { id: "3", name: "Ms. Kavindi Silva", category: "Career Guidance", experience: 4, rating: 4.9, image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&q=80&w=300&h=300", workplace: "Wellness Center W101" },
   { id: "4", name: "Dr. Kamal Perera", category: "Mental Health Specialist", experience: 10, rating: 5.0, image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300&h=300", workplace: "Medical Wing M10" },
   { id: "5", name: "Ms. Aruni Jay", category: "Emotional Regulation Expert", experience: 6, rating: 4.7, image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=300&h=300", workplace: "Wellness Center W102" },
 ];
-
-/** Must match keys in SCHEDULE_BY_DATE */
-const BOOKING_DATE_OPTIONS = ["Tomorrow", "April 8, Wed", "April 9, Thu", "April 10, Fri"];
-
-const SCHEDULE_BY_DATE = {
-  Tomorrow: [
-    { time: "09:00 AM", isBooked: true },
-    { time: "10:30 AM", isBooked: false },
-    { time: "01:00 PM", isBooked: true },
-    { time: "03:30 PM", isBooked: false },
-  ],
-  "April 8, Wed": [
-    { time: "09:00 AM", isBooked: false },
-    { time: "10:30 AM", isBooked: true },
-    { time: "01:00 PM", isBooked: false },
-    { time: "03:30 PM", isBooked: true },
-  ],
-  "April 9, Thu": [
-    { time: "09:00 AM", isBooked: false },
-    { time: "10:30 AM", isBooked: false },
-    { time: "01:00 PM", isBooked: true },
-    { time: "03:30 PM", isBooked: false },
-  ],
-  "April 10, Fri": [
-    { time: "09:00 AM", isBooked: true },
-    { time: "10:30 AM", isBooked: true },
-    { time: "01:00 PM", isBooked: false },
-    { time: "03:30 PM", isBooked: false },
-  ],
-};
 
 export default function BookAppointment() {
   const { id } = useParams();
@@ -61,19 +45,25 @@ export default function BookAppointment() {
   const [step, setStep] = useState(1);
   const [bookingId, setBookingId] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [bookedSlots, setBookedSlots] = useState([]);
 
   const [moodData, setMoodData] = useState({
-    selectedMood: "",
-    urgencyScore: 5,
+    mood: "",
+    intensity: 5,
     description: "",
   });
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState(null); // { mood, suggest, urgency }
+
+  const [counsellors, setCounsellors] = useState([]);
+  const [loadingCounsellors, setLoadingCounsellors] = useState(true);
 
   const [selectedCounsellorId, setSelectedCounsellorId] = useState(id || "");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
-  /** True when the chosen time came from "Join Waitlist" on a booked slot (user can still finish booking). */
-  const [scheduleViaWaitlist, setScheduleViaWaitlist] = useState(false);
-  const [waitlistEntries, setWaitlistEntries] = useState([]);
+  const [availability, setAvailability] = useState([]);
 
   const [formData, setFormData] = useState({
     age: "",
@@ -82,166 +72,585 @@ export default function BookAppointment() {
     medicalNotes: "",
     report: null,
   });
-  const [errors, setErrors] = useState({});
+
+  const validateStep1 = () => {
+    let newErrors = {};
+
+    if (!moodData.mood) {
+      newErrors.mood = "Please select your mood";
+    }
+
+    if (!moodData.description.trim()) {
+      newErrors.description = "Description is required";
+    } else if (moodData.description.length < 10) {
+      newErrors.description = "Minimum 10 characters required";
+    } else if (moodData.description.length > 300) {
+      newErrors.description = "Maximum 300 characters allowed";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep3 = () => {
+    let newErrors = {};
+
+    if (!selectedDate) newErrors.date = "Please select a date";
+    if (!selectedSlot) newErrors.slot = "Please select a time slot";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const computeStep4Errors = () => {
+    const newErrors = {};
+
+    if (!String(selectedCounsellorId || "").trim() || !selectedDate || !String(selectedSlot || "").trim()) {
+      newErrors.session =
+        "Counselor, date, or time is missing. Go back to scheduling or open this booking again from My Wait List.";
+    }
+
+    const ageValue = String(formData.age || "").trim();
+    if (!ageValue) {
+      newErrors.age = "Age is required";
+    } else if (!/^\d{1,2}$/.test(ageValue)) {
+      newErrors.age = "Age must be 1 or 2 digits";
+    } else {
+      const ageNumber = Number(ageValue);
+      if (Number.isNaN(ageNumber) || ageNumber < 1 || ageNumber > 60) {
+        newErrors.age = "Age must be between 1 and 60";
+      }
+    }
+
+    const contactNorm = normalizeLKPhone(formData.contactNumber);
+    if (!String(formData.contactNumber || "").trim()) {
+      newErrors.contactNumber = "Contact number is required";
+    } else if (!contactNorm) {
+      newErrors.contactNumber =
+        "Enter a valid mobile (e.g. 0771234567, 771234567, or 94771234567)";
+    }
+
+    const guardianNorm = normalizeLKPhone(formData.guardianPhoneNumber);
+    if (!String(formData.guardianPhoneNumber || "").trim()) {
+      newErrors.guardianPhoneNumber = "Guardian phone number is required";
+    } else if (!guardianNorm) {
+      newErrors.guardianPhoneNumber =
+        "Enter a valid mobile (e.g. 0771234567, 771234567, or 94771234567)";
+    }
+
+    const notesLen = (formData.medicalNotes || "").length;
+    if (notesLen > 500) {
+      newErrors.medicalNotes = "Max 500 characters allowed";
+    }
+
+    if (formData.report) {
+      const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+      if (!allowedTypes.includes(formData.report.type)) {
+        newErrors.report = "Only PDF, JPG, PNG allowed";
+      }
+
+      if (formData.report.size > 2 * 1024 * 1024) {
+        newErrors.report = "File must be less than 2MB";
+      }
+    }
+
+    return newErrors;
+  };
+
+  const validateStep4 = () => {
+    const newErrors = computeStep4Errors();
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   useEffect(() => {
+    const fetchCounsellors = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/api/counsellor/all");
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map(c => ({
+            id: c.userId.toString(), // Use userId instead of counsellor application ID
+            counsellorAppId: c.id.toString(), // Keep the application ID for reference
+            name: c.fullName,
+            category: c.specialization,
+            experience: c.experience,
+            rating: 4.8,
+            image: c.profileImage
+              ? `http://localhost:3000/${c.profileImage}`
+              : "https://images.unsplash.com/photo-1559839734-2b71cc197ec2?auto=format&fit=crop&q=80&w=300&h=300",
+            workplace: c.workplace
+          }));
+          setCounsellors(mapped.length > 0 ? mapped : FALLBACK_COUNSELLORS);
+        } else {
+          setCounsellors(FALLBACK_COUNSELLORS);
+        }
+      } catch (err) {
+        console.error("Failed to fetch counsellors", err);
+        setCounsellors(FALLBACK_COUNSELLORS);
+      } finally {
+        setLoadingCounsellors(false);
+      }
+    };
+    fetchCounsellors();
+
     const randomId = "BK-" + Math.floor(100000 + Math.random() * 900000);
     setBookingId(randomId);
   }, []);
 
-  const currentMoodObj = MOODS.find(m => m.id === moodData.selectedMood);
-  const selectedCounsellor = COUNSELLORS.find(c => c.id === (selectedCounsellorId || id));
+  useEffect(() => {
+    const raw = sessionStorage.getItem("mindbridge_waitlist_booking");
+    if (!raw || counsellors.length === 0) return;
+    try {
+      const w = JSON.parse(raw);
+      const cid = w.counsellorId ?? w.counsellorID;
+      if (cid && w.date && w.timeSlot) {
+        setSelectedCounsellorId(String(cid));
+        setSelectedDate(w.date);
+        setSelectedSlot(w.timeSlot);
+        const c = counsellors.find((x) => String(x.id) === String(cid));
+        setAiResult((prev) =>
+          prev && prev.mood
+            ? prev
+            : { mood: "neutral", urgency: 5, suggest: c?.category || "" }
+        );
+        setStep(4);
+        sessionStorage.removeItem("mindbridge_waitlist_booking");
+        toast.info("Complete your details to confirm your waitlist slot.");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [counsellors]);
 
+  useEffect(() => {
+    const raw = sessionStorage.getItem("mindbridge_pending_waitlist_join");
+    if (!raw || counsellors.length === 0) return;
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    if (!user?.token) return;
+    let pending;
+    try {
+      pending = JSON.parse(raw);
+    } catch {
+      sessionStorage.removeItem("mindbridge_pending_waitlist_join");
+      return;
+    }
+    if (!pending.counsellorId || !pending.date || !pending.timeSlot) {
+      sessionStorage.removeItem("mindbridge_pending_waitlist_join");
+      return;
+    }
+    sessionStorage.removeItem("mindbridge_pending_waitlist_join");
+
+    setSelectedCounsellorId(String(pending.counsellorId));
+    setSelectedDate(pending.date);
+    setStep(3);
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/appointments/waitlist`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({
+            counsellorId: pending.counsellorId,
+            date: pending.date,
+            timeSlot: pending.timeSlot,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data.error || "Could not join waitlist");
+          return;
+        }
+        toast.success(
+          typeof data.queuePosition === "number"
+            ? `You're #${data.queuePosition} on the waitlist for this slot.`
+            : "Joined the waitlist for this slot."
+        );
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to join waitlist");
+      }
+    })();
+  }, [counsellors]);
+
+  const joinWaitlistForSlot = async (timeOnly) => {
+    if (!selectedDate || !selectedCounsellorId) {
+      toast.error("Select a date and counselor first.");
+      return;
+    }
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    if (!user?.token) {
+      localStorage.setItem("redirectAfterLogin", "booking-step3");
+      try {
+        sessionStorage.setItem(
+          "mindbridge_pending_waitlist_join",
+          JSON.stringify({
+            counsellorId: selectedCounsellorId,
+            date: selectedDate,
+            timeSlot: timeOnly,
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+      toast.info("Please log in to join the waitlist");
+      navigate("/auth");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/appointments/waitlist`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          counsellorId: selectedCounsellorId,
+          date: selectedDate,
+          timeSlot: timeOnly,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Could not join waitlist");
+        return;
+      }
+      toast.success(
+        typeof data.queuePosition === "number"
+          ? `You're #${data.queuePosition} on the waitlist for this slot.`
+          : "Joined the waitlist for this slot."
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to join waitlist");
+    }
+  };
+
+  const selectedCounsellor = counsellors.find(c => c.id === (selectedCounsellorId));
+
+  // AI recommendation must match counsellor specialization (case-insensitive)
   const suggestedCounsellors = useMemo(() => {
-    if (!currentMoodObj) return [];
-    return COUNSELLORS.filter(c => c.category === currentMoodObj.suggest);
-  }, [currentMoodObj]);
-
-  const slotsForSelectedDate = useMemo(() => {
-    if (!selectedDate) return [];
-    return SCHEDULE_BY_DATE[selectedDate] || [];
-  }, [selectedDate]);
+    if (!aiResult?.suggest) return [];
+    const suggestNorm = (aiResult.suggest || "").trim().toLowerCase();
+    if (!suggestNorm) return [];
+    return counsellors.filter(c => (c.category || "").trim().toLowerCase() === suggestNorm);
+  }, [aiResult, counsellors]);
 
   const getUrgency = (score) => {
+    if (!score) return { label: "Unknown", color: "text-gray-600 bg-gray-50 border-gray-100" };
     if (score <= 3) return { label: "Normal", color: "text-green-600 bg-green-50 border-green-100" };
     if (score <= 6) return { label: "Medium", color: "text-orange-600 bg-orange-50 border-orange-100" };
     return { label: "High Priority", color: "text-red-600 bg-red-50 border-red-100" };
   };
 
-  const validateStep = (currentStep) => {
-    const nextErrors = {};
+  const handleAnalyzeMood = async () => {
+    if (!validateStep1()) return;
 
-    if (currentStep === 1) {
-      if (!moodData.selectedMood) nextErrors.selectedMood = "Please select your mood to continue.";
-    }
+    //   console.log("Sending to backend:", {
+    //   mood: moodData.mood,
+    //   intensity: moodData.intensity,
+    //   description: moodData.description
+    // });
 
-    if (currentStep === 2) {
-      if (moodData.description && moodData.description.trim().length > 500) {
-        nextErrors.description = "Description must be 500 characters or less.";
-      }
-    }
-
-    if (currentStep === 3) {
-      if (!selectedCounsellorId && !id) nextErrors.selectedCounsellor = "Please select a counsellor to proceed.";
-    }
-
-    if (currentStep === 4) {
-      if (!selectedDate) nextErrors.selectedDate = "Please select a date.";
-      if (!selectedSlot) {
-        nextErrors.selectedSlot =
-          "Select an available slot, or join the waitlist on a booked slot to continue.";
-      }
-    }
-
-    if (currentStep === 5) {
-      if (!formData.age) {
-        nextErrors.age = "Age is required.";
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch("http://localhost:3000/api/mood/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          mood: moodData.mood,
+          intensity: moodData.intensity,
+          description: moodData.description
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiResult(data);
+        setStep(2);
+        setErrors({});
       } else {
-        const ageStr = String(formData.age).trim();
-        if (!/^\d{1,2}$/.test(ageStr)) {
-          nextErrors.age = "Enter age as 1 or 2 digits only.";
-        } else {
-          const ageNumber = Number(ageStr);
-          if (Number.isNaN(ageNumber) || ageNumber < 1 || ageNumber > 60) {
-            nextErrors.age = "Age must be between 1 and 60.";
-          }
-        }
+        const text = await res.text();
+        console.error(text);
+        alert(text);
       }
-
-      if (!formData.contactNumber) {
-        nextErrors.contactNumber = "Contact number is required.";
-      } else if (!/^\d{10}$/.test(formData.contactNumber)) {
-        nextErrors.contactNumber = "Contact number must be exactly 10 digits.";
-      }
-
-      if (!formData.guardianPhoneNumber) {
-        nextErrors.guardianPhoneNumber = "Guardian phone number is required.";
-      } else if (!/^\d{10}$/.test(formData.guardianPhoneNumber)) {
-        nextErrors.guardianPhoneNumber = "Guardian phone number must be exactly 10 digits.";
-      }
-
-      if (formData.medicalNotes && formData.medicalNotes.trim().length > 500) {
-        nextErrors.medicalNotes = "Medical notes must be 500 characters or less.";
-      }
-
-      if (formData.report) {
-        const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
-        if (!allowedTypes.includes(formData.report.type)) {
-          nextErrors.report = "Only PDF, JPG, and PNG files are allowed.";
-        } else if (formData.report.size > 5 * 1024 * 1024) {
-          nextErrors.report = "File size must be 5MB or less.";
-        }
-      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to AI service.");
+    } finally {
+      setIsAnalyzing(false);
     }
-
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
   };
 
   const nextStep = () => {
-    if (!validateStep(step)) return;
+    if (step === 3 && !validateStep3()) return;
+
+    if (step === 2 && !selectedCounsellorId && !id) {
+      setErrors({ counsellor: "Please select a counsellor" });
+      return;
+    }
+
+    setErrors({});
     setStep(step + 1);
   };
 
   const prevStep = () => setStep(step - 1);
 
-  const handleJoinWaitlist = (slotTime) => {
-    if (!selectedDate) {
-      setErrors((prev) => ({ ...prev, selectedDate: "Please select a date first." }));
-      toast.error("Please select a date first.");
-      return;
-    }
-
-    const counsellorId = selectedCounsellorId || id;
-    const alreadyJoined = waitlistEntries.some(
-      (entry) =>
-        entry.counsellorId === counsellorId &&
-        entry.date === selectedDate &&
-        entry.slot === slotTime
-    );
-
-    if (alreadyJoined) {
-      toast.error("You are already in the waitlist for this slot.");
-      return;
-    }
-
-    setWaitlistEntries((prev) => [
-      ...prev,
-      { counsellorId, date: selectedDate, slot: slotTime },
-    ]);
-    setSelectedSlot(slotTime);
-    setScheduleViaWaitlist(true);
-    setErrors((prev) => ({ ...prev, selectedSlot: "" }));
-    toast.success(
-      `Joined waitlist for ${selectedDate} at ${slotTime}. You can continue to complete your booking.`
-    );
+  // Counselor availability dates come from `<input type="date" />` so they are already `YYYY-MM-DD`.
+  // Keep everything in ISO format internally, and only format for display.
+  const parseISODateToUTC = (isoDate) => {
+    const [y, m, d] = (isoDate || "").split("-").map(Number);
+    if (!y || !m || !d) return NaN;
+    return Date.UTC(y, m - 1, d);
   };
 
-  const handleSubmit = (e) => {
+  const formatDateLabel = (isoDate) => {
+    if (!isoDate) return "";
+    const utcMs = parseISODateToUTC(isoDate);
+    if (!Number.isFinite(utcMs)) return isoDate;
+
+    const dateUTC = new Date(utcMs);
+    const month = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" }).format(dateUTC);
+    const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(dateUTC);
+    const day = isoDate.split("-")[2];
+    return `${month} ${day}, ${weekday}`;
+  };
+
+  const selectedDateLabel = useMemo(
+    () => (selectedDate ? formatDateLabel(selectedDate) : ""),
+    [selectedDate]
+  );
+
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  const isSlotInPast = (dateStr, startTime) => {
+    if (dateStr !== todayStr) return false;
+    const [h, m] = (startTime || "00:00").split(":").map(Number);
+    const slotMins = (h || 0) * 60 + (m || 0);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    return slotMins <= nowMins;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      toast.error("Login required");
+
+    const userRaw = localStorage.getItem("user");
+    let user = null;
+    try {
+      user = userRaw ? JSON.parse(userRaw) : null;
+    } catch {
+      user = null;
+    }
+
+    if (!user || !user.token) {
+      localStorage.setItem("redirectAfterLogin", "booking-step4");
+
+      navigate("/auth", {
+        state: { message: "Please login to book an appointment 🔒" }
+      });
+
       return;
+    }
+
+    const step4Errors = computeStep4Errors();
+    if (Object.keys(step4Errors).length > 0) {
+      setErrors(step4Errors);
+      const order = ["session", "age", "contactNumber", "guardianPhoneNumber", "medicalNotes", "report"];
+      const msg = order.map((k) => step4Errors[k]).find(Boolean) || Object.values(step4Errors)[0];
+      toast.error(msg);
+      return;
+    }
+
+    const contactOut = normalizeLKPhone(formData.contactNumber);
+    const guardianOut = normalizeLKPhone(formData.guardianPhoneNumber);
+
+    const form = new FormData();
+
+    form.append("bookingId", bookingId);
+    form.append("counsellorId", String(selectedCounsellorId ?? ""));
+    form.append("date", selectedDate);
+    form.append("timeSlot", selectedSlot);
+    form.append("mood", aiResult?.mood || "");
+    form.append("urgency", aiResult?.urgency || 0);
+    form.append("age", formData.age);
+    form.append("contactNumber", contactOut);
+    form.append("guardianPhoneNumber", guardianOut);
+    form.append("medicalNotes", formData.medicalNotes);
+
+    if (formData.report) {
+      form.append("report", formData.report);
     }
 
     try {
-      const parsedUser = JSON.parse(storedUser);
-      if (!parsedUser) {
-        toast.error("Login required");
-        return;
+      const res = await fetch("http://localhost:3000/api/appointments/create", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: form,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Appointment booked successfully.");
+        setSubmitted(true);
+      } else {
+        if (data.error === "This time slot is already booked") {
+          toast.error("⚠️ This slot is already taken. Please choose another time.");
+        } else {
+          toast.error(data.error || "Booking failed");
+        }
       }
-    } catch {
-      toast.error("Login required");
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Error connecting to server.");
+    }
+  };
+
+  useEffect(() => {
+    const redirect = localStorage.getItem("redirectAfterLogin");
+
+    if (redirect === "booking-step4") {
+      setStep(4);
+      localStorage.removeItem("redirectAfterLogin");
+    } else if (redirect === "booking-step3") {
+      setStep(3);
+      localStorage.removeItem("redirectAfterLogin");
+    }
+  }, []);
+
+
+
+  useEffect(() => {
+    if (!selectedDate || !selectedCounsellorId) {
+      console.log("Missing date or counsellor, skipping booked slots fetch");
       return;
     }
 
-    if (!validateStep(5)) return;
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const fetchBookedSlots = async () => {
+      try {
+        const url = `http://localhost:3000/api/appointments/booked-slots?counsellorId=${selectedCounsellorId}&date=${selectedDate}`;
+        
+        console.log("Fetching booked slots from:", url);
+        
+        const res = await fetch(url);
+        const data = await res.json();
+
+        console.log("Booked slots response:", data);
+
+        if (res.ok) {
+          const slots = data.bookedSlots || [];
+          console.log("Setting booked slots:", slots);
+          setBookedSlots(slots);
+        } else {
+          console.error("Failed to fetch booked slots");
+          setBookedSlots([]);
+        }
+      } catch (err) {
+        console.error("Error fetching booked slots:", err);
+        setBookedSlots([]);
+      }
+    };
+
+    fetchBookedSlots();
+  }, [selectedDate, selectedCounsellorId]);
+
+  const progress = (step / 4) * 100;
+
+  console.log("Sending:", {
+    mood: moodData.mood,
+    intensity: moodData.intensity,
+    description: moodData.description
+  });
+
+  useEffect(() => {
+    if (!selectedCounsellorId) {
+      console.log("No counsellor selected, skipping availability fetch");
+      return;
+    }
+
+    console.log("Fetching availability for counsellorId:", selectedCounsellorId);
+
+    const fetchAvailability = async () => {
+      try {
+        const url = `http://localhost:3000/api/counsellor/availability/${selectedCounsellorId}`;
+        console.log("Fetching from URL:", url);
+        
+        const res = await fetch(url);
+        const data = await res.json();
+
+        console.log("Availability response status:", res.status);
+        console.log("Availability response data:", data);
+
+        if (res.ok) {
+          const slots = Array.isArray(data) ? data : (data || []);
+          console.log("Setting availability with", slots.length, "slots");
+          setAvailability(slots);
+        } else {
+          console.error("Failed to fetch availability. Status:", res.status);
+          setAvailability([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch availability:", err);
+        setAvailability([]);
+      }
+    };
+
+    fetchAvailability();
+  }, [selectedCounsellorId]);
+
+  const availableSlotsForDate = useMemo(() => {
+    if (!selectedDate) return [];
+    return availability
+      .filter((slot) => slot.date === selectedDate)
+      .filter((slot) => !isSlotInPast(slot.date, slot.startTime));
+  }, [availability, selectedDate]);
+
+  const formatTime = (time) => {
+    const [hour, minute] = (time || "00:00").split(":");
+    let h = parseInt(hour) || 0;
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h.toString().padStart(2, "0")}:${minute || "00"} ${ampm}`;
   };
 
-  const progress = (step / 5) * 100;
+  const availableDates = useMemo(() => {
+    const distinct = Array.from(
+      new Set(availability.map((slot) => slot.date).filter(Boolean))
+    );
+    const futureOrToday = distinct.filter((d) => d >= todayStr);
+    return futureOrToday.sort((a, b) => parseISODateToUTC(a) - parseISODateToUTC(b));
+  }, [availability, todayStr]);
+
+  // Clear selection if it becomes invalid (past date/slot).
+  // While availability is still loading ([]), do not clear — otherwise deep links
+  // (e.g. waitlist "Book now") lose date/slot before the API returns.
+  useEffect(() => {
+    if (!selectedDate) return;
+    if (availability.length === 0) return;
+    if (!availableDates.includes(selectedDate)) {
+      setSelectedDate("");
+      setSelectedSlot("");
+    }
+  }, [selectedDate, availableDates, availability.length]);
+
+  useEffect(() => {
+    if (!selectedSlot || availableSlotsForDate.length === 0) return;
+    const stillValid = availableSlotsForDate.some((s) => formatTime(s.startTime) === selectedSlot);
+    if (!stillValid) setSelectedSlot("");
+  }, [selectedSlot, availableSlotsForDate]);
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 md:px-6">
@@ -252,12 +661,11 @@ export default function BookAppointment() {
           <div className="mb-8">
             <div className="flex justify-between items-end mb-3">
               <div>
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em]">Step {step} of 5</p>
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em]">Step {step} of 4</p>
                 <h2 className="text-lg font-black text-slate-900">
                   {step === 1 ? "Mental Check-in" :
-                    step === 2 ? "Provide Context" :
-                      step === 3 ? "Select Specialist" :
-                        step === 4 ? "Schedule Session" : "Finalize Booking"}
+                    step === 2 ? "Select Specialist" :
+                      step === 3 ? "Schedule Session" : "Finalize Booking"}
                 </h2>
               </div>
               <span className="text-xs font-bold text-slate-400">{Math.round(progress)}% Complete</span>
@@ -279,7 +687,7 @@ export default function BookAppointment() {
               </div>
               <h1 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Appointment Secured!</h1>
               <p className="text-slate-500 text-sm mb-8 max-w-sm mx-auto leading-relaxed">
-                Your session with <span className="text-slate-900 font-bold">{selectedCounsellor?.name}</span> is being processed.
+                Your session with Mr/Mrs/Miss.<span className="text-slate-900 font-bold">{selectedCounsellor?.name}</span> is being processed.
                 You'll receive a confirmation email shortly.
               </p>
 
@@ -290,22 +698,17 @@ export default function BookAppointment() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Priority</p>
-                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${getUrgency(moodData.urgencyScore).color}`}>
-                    {getUrgency(moodData.urgencyScore).label}
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${getUrgency(aiResult?.urgency || 5).color}`}>
+                    {getUrgency(aiResult?.urgency || 5).label}
                   </span>
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Date</p>
-                  <p className="font-bold text-sm text-slate-900">{selectedDate}</p>
+                  <p className="font-bold text-sm text-slate-900">{selectedDateLabel}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time</p>
-                  <p className="font-bold text-sm text-slate-900">
-                    {selectedSlot}
-                    {scheduleViaWaitlist ? (
-                      <span className="ml-1 text-[10px] font-black uppercase text-amber-700"> (Waitlist)</span>
-                    ) : null}
-                  </p>
+                  <p className="font-bold text-sm text-slate-900">{selectedSlot}</p>
                 </div>
               </div>
 
@@ -325,164 +728,181 @@ export default function BookAppointment() {
             </div>
           ) : (
             <>
-              {/* STEP 1: MOOD & URGENCY */}
+
+              {/* STEP 1: AI MOOD CHECK */}
               {step === 1 && (
                 <div className="p-6 md:p-8 animate-fadeIn">
-                  <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">How are you feeling right now?</h2>
-                  <p className="text-slate-500 text-sm mb-8 font-medium leading-relaxed">Your emotional state helps us match you with the right specialist.</p>
 
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-                    {MOODS.map((m) => (
+                  <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+                    How are you feeling today?
+                  </h2>
+
+                  <p className="text-slate-500 text-sm mb-6 font-medium">
+                    Select your mood and tell us more about what you're experiencing.
+                  </p>
+
+                  {/* Emoji Mood Selector */}
+                  <div className="grid grid-cols-5 gap-3 mb-6">
+                    {MOODS.map(m => (
                       <button
-                        key={m.id}
-                        onClick={() => setMoodData({ ...moodData, selectedMood: m.id })}
-                        className={`group flex flex-col items-center p-4 rounded-2xl border-2 transition-all duration-300 ${moodData.selectedMood === m.id
-                          ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200 -translate-y-1"
-                          : "bg-slate-50 border-slate-50 text-slate-400 hover:border-blue-200 hover:-translate-y-1"
+                        key={m.value}
+                        onClick={() => setMoodData({ ...moodData, mood: m.value })}
+                        className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all 
+                          ${moodData.mood === m.value
+                            ? "border-blue-600 bg-blue-50"
+                            : "border-slate-100 hover:border-blue-200"
                           }`}
                       >
-                        <div className={`text-3xl mb-3 transition-transform group-hover:scale-110 ${moodData.selectedMood === m.id ? "text-white" : ""}`}>
+                        <div className={`text-2xl ${m.color}`}>
                           {m.icon}
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                           {m.label}
                         </span>
                       </button>
                     ))}
                   </div>
-                  {errors.selectedMood && (
-                    <p className="text-xs text-red-500 font-bold mb-6">{errors.selectedMood}</p>
-                  )}
 
-                  <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="flex justify-between items-center mb-5">
-                      <div>
-                        <h4 className="text-base font-black text-slate-900">Intensity Level</h4>
-                        <p className="text-xs font-medium text-slate-500">How overwhelming are these feelings?</p>
-                      </div>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg shadow-sm ${moodData.urgencyScore > 7 ? 'bg-red-100 text-red-600' : moodData.urgencyScore > 4 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                        {moodData.urgencyScore}
-                      </div>
-                    </div>
+                  {/* Intensity Slider */}
+                  <div className="mb-6">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                      Emotion Intensity
+                    </label>
+
                     <input
-                      type="range" min="1" max="10"
-                      value={moodData.urgencyScore}
-                      onChange={(e) => setMoodData({ ...moodData, urgencyScore: parseInt(e.target.value) })}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 mb-3"
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={moodData.intensity}
+                      onChange={(e) =>
+                        setMoodData({ ...moodData, intensity: Number(e.target.value) })
+                      }
+                      className="w-full"
                     />
-                    <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                      <span>Mild</span>
-                      <span>Moderate</span>
-                      <span>Severe</span>
+
+                    <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                      <span>Low</span>
+                      <span className="font-bold text-blue-600">{moodData.intensity}</span>
+                      <span>High</span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={nextStep}
-                    className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    Continue <FaArrowRight />
-                  </button>
-                </div>
-              )}
-
-              {/* STEP 2: DESCRIPTION */}
-              {step === 2 && (
-                <div className="p-6 md:p-8 animate-fadeIn">
-                  <button onClick={prevStep} className="inline-flex items-center text-slate-400 hover:text-slate-900 font-bold text-xs uppercase tracking-widest mb-6 transition-colors">
-                    <FaArrowLeft className="mr-2" /> Previous Step
-                  </button>
-                  <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Express yourself</h2>
-                  <p className="text-slate-500 text-sm mb-6 font-medium">Briefly describe what you're experiencing. This helps your counsellor prepare for the session.</p>
-
+                  {/* Description */}
                   <div className="relative mb-8">
                     <textarea
                       value={moodData.description}
-                      onChange={(e) => setMoodData({ ...moodData, description: e.target.value })}
-                      placeholder="Start typing here... (Optional)"
-                      className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-6 text-sm font-medium text-slate-700 focus:bg-white focus:border-blue-100 transition-all outline-none min-h-32 shadow-sm"
+                      onChange={(e) =>
+                        setMoodData({ ...moodData, description: e.target.value })
+                      }
+                      placeholder="Describe your situation... (e.g., I feel stressed about my exams)"
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-6 text-sm font-medium text-slate-700 focus:bg-white focus:border-blue-300 transition-all outline-none min-h-32 shadow-sm"
                     />
-                    <div className="absolute top-4 right-4 text-blue-100 text-3xl pointer-events-none">
-                      <FaMeh />
+                    {errors.description && (
+                      <p className="text-red-500 text-xs mt-1">{errors.description}</p>
+                    )}
+
+                    <div className="absolute top-4 right-4 text-slate-300 text-2xl">
+                      <FaBrain />
                     </div>
                   </div>
-                  {errors.description && (
-                    <p className="text-xs text-red-500 font-bold mb-6">{errors.description}</p>
-                  )}
 
+                  {/* Analyze Button */}
                   <button
-                    onClick={nextStep}
-                    className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    onClick={handleAnalyzeMood}
+                    disabled={isAnalyzing || !moodData.mood}
+                    className={`w-full py-4 rounded-xl font-bold text-base shadow-lg transition-all flex items-center justify-center gap-2 
+                      ${isAnalyzing || !moodData.mood
+                        ? "bg-blue-300 text-white cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
                   >
-                    Match with Specialist <FaArrowRight />
+                    {isAnalyzing ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Analyzing Mood...
+                      </>
+                    ) : (
+                      <>
+                        Analyze Mood <FaRobot />
+                      </>
+                    )}
                   </button>
+
                 </div>
               )}
 
-              {/* STEP 3: RECOMMENDATION & SELECTION */}
-              {step === 3 && (
+              {/* STEP 2: RECOMMENDATION & SELECTION */}
+              {step === 2 && (
                 <div className="p-6 md:p-8 animate-fadeIn">
                   <button onClick={prevStep} className="inline-flex items-center text-slate-400 hover:text-slate-900 font-bold text-xs uppercase tracking-widest mb-6 transition-colors">
-                    <FaArrowLeft className="mr-2" /> Previous Step
+                    <FaArrowLeft className="mr-2" /> Retake Analysis
                   </button>
 
                   <div className="bg-blue-600 p-6 rounded-2xl mb-8 shadow-lg shadow-blue-200 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12 blur-xl" />
                     <div className="relative z-10 flex items-start gap-4">
                       <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-2xl">
-                        <FaUserMd />
+                        <FaRobot />
                       </div>
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">System Recommendation</p>
-                        <h3 className="text-xl font-black tracking-tight mb-1">You need a {currentMoodObj?.suggest}</h3>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">AI Recommendation</p>
+                        <h3 className="text-xl font-black tracking-tight mb-1">You need {aiResult?.suggest}</h3>
                         <p className="text-blue-100 text-xs font-medium leading-relaxed opacity-90 max-w-sm">
-                          Based on your reported <span className="text-white font-bold">{currentMoodObj?.label}</span> level {moodData.urgencyScore},
-                          our triage system suggests an expert specializing in {currentMoodObj?.suggest.toLowerCase()}.
+                          Based on your reported feelings, we categorized your mood as <span className="text-white font-bold capitalize">{aiResult?.mood}</span> with an urgency score of {aiResult?.urgency}/10.
+                          Our system recommends an expert specializing in {aiResult?.suggest?.toLowerCase()}.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-2">Available Specialists</h4>
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-2">
+                    {id ? "Selected Specialist" : suggestedCounsellors.length > 0
+                      ? `Recommended Specialists (${aiResult?.suggest})`
+                      : "Available Specialists"}
+                  </h4>
                   <div className="space-y-3 mb-8">
-                    {(id ? COUNSELLORS.filter(c => c.id === id) : suggestedCounsellors.length > 0 ? suggestedCounsellors : COUNSELLORS).map(c => (
-                      <div
-                        key={c.id}
-                        onClick={() => setSelectedCounsellorId(c.id)}
-                        className={`group p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 ${selectedCounsellorId === c.id || (id === c.id)
-                          ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200"
-                          : "bg-white border-slate-100 hover:border-blue-200"
-                          }`}
-                      >
-                        <img src={c.image} alt={c.name} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
-                        <div className="flex-1">
-                          <h5 className={`text-base font-black ${selectedCounsellorId === c.id || (id === c.id) ? 'text-white' : 'text-slate-900'}`}>{c.name}</h5>
-                          <div className="flex flex-wrap gap-3 mt-1">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${selectedCounsellorId === c.id || (id === c.id) ? 'text-slate-400' : 'text-slate-500'}`}>
-                              <FaBriefcase /> {c.category}
-                            </span>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${selectedCounsellorId === c.id || (id === c.id) ? 'text-slate-400' : 'text-slate-500'}`}>
-                              <FaGraduationCap /> {c.experience}+ Yrs
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right hidden sm:block">
-                            <div className="flex items-center justify-end text-yellow-400 gap-1 mb-0.5">
-                              <FaStar className="w-3 h-3" /> <span className="font-bold text-xs">{c.rating}</span>
+                    {loadingCounsellors ? (
+                      <p className="text-sm text-slate-500 text-center py-4">Loading specialists...</p>
+                    ) : (
+                      (id ? counsellors.filter(c => c.id === id) : suggestedCounsellors.length > 0 ? suggestedCounsellors : counsellors).map(c => (
+                        <div
+                          key={c.id}
+                          onClick={() => setSelectedCounsellorId(c.id)}
+                          className={`group p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 ${selectedCounsellorId === c.id || (id === c.id)
+                            ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200"
+                            : "bg-white border-slate-100 hover:border-blue-200"
+                            }`}
+                        >
+                          <img src={c.image} alt={c.name} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
+                          <div className="flex-1">
+                            <h5 className={`text-base font-black ${selectedCounsellorId === c.id || (id === c.id) ? 'text-white' : 'text-slate-900'}`}>{c.name}</h5>
+                            <div className="flex flex-wrap gap-3 mt-1">
+                              <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${selectedCounsellorId === c.id || (id === c.id) ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <FaBriefcase /> {c.category}
+                              </span>
+                              <span className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${selectedCounsellorId === c.id || (id === c.id) ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <FaGraduationCap /> {c.experience}+ Yrs
+                              </span>
                             </div>
-                            <p className={`text-[9px] font-black uppercase tracking-widest ${selectedCounsellorId === c.id || (id === c.id) ? 'text-slate-500' : 'text-slate-300'}`}>Reviews</p>
                           </div>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedCounsellorId === c.id || (id === c.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-200'}`}>
-                            {(selectedCounsellorId === c.id || id === c.id) && <FaCheckCircle className="text-white text-xs" />}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right hidden sm:block">
+                              <div className="flex items-center justify-end text-yellow-400 gap-1 mb-0.5">
+                                <FaStar className="w-3 h-3" /> <span className="font-bold text-xs">{c.rating}</span>
+                              </div>
+                              <p className={`text-[9px] font-black uppercase tracking-widest ${selectedCounsellorId === c.id || (id === c.id) ? 'text-slate-500' : 'text-slate-300'}`}>Reviews</p>
+                            </div>
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedCounsellorId === c.id || (id === c.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-200'}`}>
+                              {(selectedCounsellorId === c.id || id === c.id) && <FaCheckCircle className="text-white text-xs" />}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
+                    {errors.counsellor && (
+                      <p className="text-red-500 text-xs mb-4">{errors.counsellor}</p>
+                    )}
                   </div>
-                  {errors.selectedCounsellor && (
-                    <p className="text-xs text-red-500 font-bold mb-6">{errors.selectedCounsellor}</p>
-                  )}
 
                   <button
                     onClick={nextStep}
@@ -496,8 +916,8 @@ export default function BookAppointment() {
                 </div>
               )}
 
-              {/* STEP 4: SCHEDULING */}
-              {step === 4 && (
+              {/* STEP 3: SCHEDULING */}
+              {step === 3 && (
                 <div className="p-6 md:p-8 animate-fadeIn">
                   <button onClick={prevStep} className="inline-flex items-center text-slate-400 hover:text-slate-900 font-bold text-xs uppercase tracking-widest mb-6 transition-colors">
                     <FaArrowLeft className="mr-2" /> Previous Step
@@ -510,23 +930,25 @@ export default function BookAppointment() {
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-1 flex items-center gap-2">
                         <FaCalendarAlt className="text-blue-600" /> Select Date
                       </h4>
+                      {errors.date && <p className="text-red-500 text-xs">{errors.date}</p>}
                       <div className="grid grid-cols-2 gap-2">
-                        {BOOKING_DATE_OPTIONS.map(date => (
-                          <button
-                            key={date}
-                            onClick={() => {
-                              setSelectedDate(date);
-                              setSelectedSlot("");
-                              setScheduleViaWaitlist(false);
-                              setErrors((prev) => ({ ...prev, selectedDate: "", selectedSlot: "" }));
-                            }}
-                            className={`p-3 text-xs rounded-xl border-2 font-bold transition-all ${selectedDate === date
-                              ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100'
-                              : 'bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100 hover:bg-white'}`}
-                          >
-                            {date}
-                          </button>
-                        ))}
+                        {availableDates.length === 0 ? (
+                          <p className="text-sm text-slate-400 col-span-2">No dates available</p>
+                        ) : (
+                          availableDates.map((date) => (
+                            <button
+                              key={date}
+                              onClick={() => { setSelectedDate(date); setSelectedSlot(""); }}
+                              className={`p-3 text-xs rounded-xl border-2 font-bold transition-all ${
+                                selectedDate === date
+                                  ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100"
+                                  : "bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100 hover:bg-white"
+                              }`}
+                            >
+                              {formatDateLabel(date)}
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
 
@@ -535,71 +957,53 @@ export default function BookAppointment() {
                         <FaClock className="text-blue-600" /> Available Slots
                       </h4>
                       <div className="grid grid-cols-2 gap-2">
-                        {(selectedDate ? slotsForSelectedDate : []).map((slotItem) => {
-                          const slot = slotItem.time;
-                          const joinedWaitlist = waitlistEntries.some(
-                            (entry) =>
-                              entry.counsellorId === (selectedCounsellorId || id) &&
-                              entry.date === selectedDate &&
-                              entry.slot === slot
-                          );
-                          return (
-                            <div key={slot} className="space-y-1">
-                              <button
-                                onClick={() => {
-                                  if (slotItem.isBooked) return;
-                                  setSelectedSlot(slot);
-                                  setScheduleViaWaitlist(false);
-                                  setErrors((prev) => ({ ...prev, selectedSlot: "" }));
-                                }}
-                                className={`w-full p-3 text-xs rounded-xl border-2 font-bold transition-all ${
-                                  slotItem.isBooked
-                                    ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                                    : selectedSlot === slot
-                                      ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100"
-                                      : "bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100 hover:bg-white"
-                                }`}
-                              >
-                                {slot} {slotItem.isBooked ? "• Booked" : ""}
-                              </button>
-                              {slotItem.isBooked && (
+                        {availableSlotsForDate.length === 0 ? (
+                          <p className="text-sm text-slate-400">No slots available</p>
+                        ) : (
+                          availableSlotsForDate.map((slot, index) => {
+                            const formatted = `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`;
+                            const timeOnly = formatTime(slot.startTime);
+
+                            const isBooked = (bookedSlots || []).includes(timeOnly);
+
+                            return (
+                              <div key={slot.id || index} className="flex flex-col items-center">
                                 <button
-                                  onClick={() => handleJoinWaitlist(slot)}
-                                  disabled={joinedWaitlist}
-                                  className={`w-full py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    joinedWaitlist
-                                      ? "bg-emerald-100 text-emerald-700 cursor-not-allowed"
-                                      : "bg-orange-50 text-orange-700 hover:bg-orange-100"
-                                  }`}
+                                  onClick={() => !isBooked && setSelectedSlot(timeOnly)}
+                                  disabled={isBooked}
+                                  className={`p-3 text-xs rounded-xl border-2 font-bold transition-all w-full
+            ${isBooked
+                                      ? "bg-gray-200 text-gray-400 cursor-not-allowed line-through"
+                                      : selectedSlot === timeOnly
+                                        ? "bg-blue-600 border-blue-600 text-white shadow-md"
+                                        : "bg-slate-50 border-slate-50 text-slate-600 hover:border-blue-100"
+                                    }`}
                                 >
-                                  {joinedWaitlist ? "Waitlisted" : "Join Waitlist"}
+                                  {formatted}
                                 </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {!selectedDate && (
-                          <p className="col-span-2 text-xs text-slate-400 font-bold">
-                            Select a date to view available and booked slots.
-                          </p>
+
+                                {isBooked && (
+                                  <div className="mt-1 flex flex-col items-center gap-1">
+                                    <span className="text-[9px] text-red-500 font-bold">Booked</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        joinWaitlistForSlot(timeOnly);
+                                      }}
+                                      className="text-[9px] font-black uppercase tracking-tight text-indigo-600 hover:text-indigo-800 underline"
+                                    >
+                                      Join waitlist
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
                   </div>
-                  {(errors.selectedDate || errors.selectedSlot) && (
-                    <p className="text-xs text-red-500 font-bold mt-4">
-                      {errors.selectedDate || errors.selectedSlot}
-                    </p>
-                  )}
-
-                  {scheduleViaWaitlist && selectedDate && selectedSlot && (
-                    <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-900">
-                      <span className="font-black uppercase tracking-widest text-amber-700">Waitlist</span>
-                      <p className="mt-1 leading-relaxed">
-                        You joined the waitlist for this time. Continue below to finish your appointment details—your slot will be confirmed if it opens.
-                      </p>
-                    </div>
-                  )}
 
                   <div className="mt-8 p-6 bg-slate-900 rounded-2xl flex items-center justify-between text-white">
                     <div className="flex items-center gap-3">
@@ -614,12 +1018,7 @@ export default function BookAppointment() {
                     {selectedDate && selectedSlot && (
                       <div className="text-right">
                         <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">Selected</p>
-                        <p className="font-bold text-sm">
-                          {selectedDate} @ {selectedSlot}
-                          {scheduleViaWaitlist ? (
-                            <span className="block text-[10px] font-black uppercase text-amber-300">Waitlist</span>
-                          ) : null}
-                        </p>
+                        <p className="font-bold text-sm">{selectedDateLabel} @ {selectedSlot}</p>
                       </div>
                     )}
                   </div>
@@ -636,113 +1035,106 @@ export default function BookAppointment() {
                 </div>
               )}
 
-              {/* STEP 5: FINAL FORM */}
-              {step === 5 && (
+              {/* STEP 4: FINAL FORM */}
+              {step === 4 && (
                 <div className="p-6 md:p-8 animate-fadeIn">
                   <button onClick={prevStep} className="inline-flex items-center text-slate-400 hover:text-slate-900 font-bold text-xs uppercase tracking-widest mb-6 transition-colors">
                     <FaArrowLeft className="mr-2" /> Previous Step
                   </button>
                   <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Review & Finalize</h2>
-                  <p className="text-slate-500 text-sm mb-8 font-medium">Verify your details and add any last-minute information.</p>
+                  <p className="text-slate-500 text-sm mb-8 font-medium">Verify your details and complete your booking information.</p>
+
+                  {errors.session && (
+                    <p className="text-red-700 text-sm font-medium mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
+                      {errors.session}
+                    </p>
+                  )}
 
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-5">
-                      <div className="flex items-center gap-4 pb-5 border-b border-white outline-1 outline-slate-100 rounded-xl p-3 bg-white">
+                    <div className="p-6 bg-linear-to-br from-slate-50 via-white to-blue-50/30 rounded-2xl border border-slate-100 space-y-5 shadow-sm">
+                      <div className="flex items-center gap-4 pb-5 border-b border-slate-100 rounded-xl p-3 bg-white shadow-sm">
                         <img src={selectedCounsellor?.image} className="w-12 h-12 rounded-lg object-cover" />
                         <div>
                           <h4 className="font-black text-sm text-slate-900">{selectedCounsellor?.name}</h4>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedCounsellor?.category}</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <p className="text-sm font-black text-blue-600">{selectedDate}</p>
-                          <p className="text-[10px] font-bold text-slate-400">
-                            {selectedSlot}
-                            {scheduleViaWaitlist ? (
-                              <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-800">
-                                Waitlist
-                              </span>
-                            ) : null}
-                          </p>
+                          <p className="text-sm font-black text-blue-600">{selectedDateLabel}</p>
+                          <p className="text-[10px] font-bold text-slate-400">{selectedSlot}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Step</p>
+                          <p className="text-xs font-bold text-slate-700">Personal Details</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Validation</p>
+                          <p className="text-xs font-bold text-slate-700">Real-time checks enabled</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Security</p>
+                          <p className="text-xs font-bold text-slate-700">Confidential handling</p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Age (1–60)</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1 mb-1">Age (1-60)</label>
                           <input
                             type="text"
                             inputMode="numeric"
                             maxLength={2}
-                            autoComplete="off"
                             value={formData.age}
                             onChange={(e) => {
                               let digits = e.target.value.replace(/\D/g, "").slice(0, 2);
-                              if (digits === "") {
+                              if (!digits) {
                                 setFormData({ ...formData, age: "" });
                                 return;
                               }
-                              // No leading zeros (ages are 1–60)
-                              if (digits.startsWith("0")) {
-                                digits = digits.replace(/^0+/, "") || "";
-                                if (digits === "") {
-                                  setFormData({ ...formData, age: "" });
-                                  return;
-                                }
-                              }
-                              const n = Number(digits);
-                              if (digits.length === 1 && n === 0) {
-                                setFormData({ ...formData, age: "" });
-                                return;
-                              }
-                              // Two digits: never allow > 60 (e.g. 99 → 60, 61 → 60)
-                              if (digits.length === 2 && n > 60) {
-                                setFormData({ ...formData, age: "60" });
-                                return;
-                              }
+                              const num = Number(digits);
+                              if (digits.length === 2 && num > 60) digits = "60";
+                              if (num === 0) digits = "";
                               setFormData({ ...formData, age: digits });
                             }}
-                            placeholder="e.g. 21"
+                            placeholder="Age"
                             className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 text-xs focus:border-blue-100 transition-all outline-none"
                           />
-                          {errors.age && (
-                            <p className="text-xs text-red-500 font-bold">{errors.age}</p>
-                          )}
+                          <p className="text-[10px] text-slate-400 px-1">Enter your current age.</p>
+                          {errors.age && <p className="text-red-500 text-xs mt-1">{errors.age}</p>}
                         </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Contact Number</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1 mb-1">Contact Number</label>
                           <input
                             type="text"
                             inputMode="numeric"
+                            maxLength={10}
                             value={formData.contactNumber}
-                            onChange={(e) => {
-                              const filtered = e.target.value.replace(/\D/g, "").slice(0, 10);
-                              setFormData({ ...formData, contactNumber: filtered });
-                            }}
-                            placeholder="0771234567"
+                            onChange={(e) =>
+                              setFormData({ ...formData, contactNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })
+                            }
+                            placeholder="07XXXXXXXX"
                             className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 text-xs focus:border-blue-100 transition-all outline-none"
                           />
-                          {errors.contactNumber && (
-                            <p className="text-xs text-red-500 font-bold">{errors.contactNumber}</p>
-                          )}
+                          <p className="text-[10px] text-slate-400 px-1">Primary number for appointment updates.</p>
+                          {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
                         </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Guardian Phone Number</label>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1 mb-1">Guardian Phone</label>
                           <input
                             type="text"
                             inputMode="numeric"
+                            maxLength={10}
                             value={formData.guardianPhoneNumber}
-                            onChange={(e) => {
-                              const filtered = e.target.value.replace(/\D/g, "").slice(0, 10);
-                              setFormData({ ...formData, guardianPhoneNumber: filtered });
-                            }}
-                            placeholder="0712345678"
+                            onChange={(e) =>
+                              setFormData({ ...formData, guardianPhoneNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })
+                            }
+                            placeholder="07XXXXXXXX"
                             className="w-full bg-white border-2 border-slate-100 rounded-xl p-3 text-xs focus:border-blue-100 transition-all outline-none"
                           />
-                          {errors.guardianPhoneNumber && (
-                            <p className="text-xs text-red-500 font-bold">{errors.guardianPhoneNumber}</p>
-                          )}
+                          <p className="text-[10px] text-slate-400 px-1">Emergency contact number.</p>
+                          {errors.guardianPhoneNumber && <p className="text-red-500 text-xs mt-1">{errors.guardianPhoneNumber}</p>}
                         </div>
                       </div>
 
@@ -752,11 +1144,9 @@ export default function BookAppointment() {
                           value={formData.medicalNotes}
                           onChange={(e) => setFormData({ ...formData, medicalNotes: e.target.value })}
                           placeholder="List any medical history or current medications..."
-                          className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-xs focus:border-blue-100 transition-all outline-none min-h-20"
+                          className="w-full bg-white border-2 border-slate-100 rounded-xl p-4 text-xs focus:border-blue-100 transition-all outline-none min-h-24"
                         />
-                        {errors.medicalNotes && (
-                          <p className="text-xs text-red-500 font-bold">{errors.medicalNotes}</p>
-                        )}
+                        <p className="text-[10px] text-slate-400 px-1">Optional, but helps your counselor prepare better.</p>
                       </div>
 
                       <div className="p-4 bg-white border-2 border-dashed border-slate-200 rounded-xl text-center relative hover:border-blue-400 transition-colors">
@@ -769,11 +1159,9 @@ export default function BookAppointment() {
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                             {formData.report ? formData.report.name : "Attach Medical Reports (PDF/JPG)"}
                           </span>
+                          <span className="text-[10px] text-slate-400">Max 2MB • PDF, JPG, PNG</span>
                         </div>
                       </div>
-                      {errors.report && (
-                        <p className="text-xs text-red-500 font-bold">{errors.report}</p>
-                      )}
                     </div>
 
                     <div className="flex items-start gap-3 p-4 bg-orange-50 rounded-xl border border-orange-100">
@@ -784,9 +1172,9 @@ export default function BookAppointment() {
                     </div>
 
                     <button type="submit"
-                      className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-[0.98] tracking-tight"
+                      className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-[0.98] tracking-tight"
                     >
-                      Confirm Booking
+                      Confirm Appointment
                     </button>
                   </form>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FaCheckCircle,
   FaExclamationCircle,
@@ -8,59 +8,119 @@ import {
   FaFilePdf,
   FaPaperclip,
 } from "react-icons/fa";
+import { toast } from "react-toastify";
+
+const API_BASE_URL = "http://localhost:3000";
+
+function formatPlanDate(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function mapApiPlanToStep(p) {
+  const st = (p.status || "").trim();
+  const completed = st.toLowerCase() === "completed";
+  const updated =
+    p.updated_at || p.updatedAt || p.UpdatedAt || null;
+  return {
+    id: p.id,
+    appointmentId: p.appointment_id ?? p.appointmentId,
+    counsellorId: p.counsellor_id ?? p.counsellorId,
+    studentId: p.student_id ?? p.studentId,
+    counsellorName: p.counsellor_name || p.counsellorName || "",
+    title: p.title || "Treatment plan",
+    notes: p.description || "",
+    date: formatPlanDate(updated),
+    completed,
+    studentComment: "",
+    attachment: null,
+  };
+}
 
 export default function TreatmentPlanTab({ onViewReport }) {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
   const [expandedStepId, setExpandedStepId] = useState(null);
   const [pendingConfirmStepId, setPendingConfirmStepId] = useState(null);
 
-  const [steps, setSteps] = useState([
-    {
-      id: 1,
-      title: "Follow Structured Study Schedule",
-      date: "Feb 10, 2026",
-      status: "Current Step",
-      completed: false,
-      notes:
-        "Follow the study timetable prepared during the counseling session for at least 5 days. Focus on fixed study hours, short breaks, and realistic daily targets.",
-      studentComment: "",
-      attachment: null,
-    },
-    {
-      id: 2,
-      title: "Practice Daily Anxiety Reduction Exercise",
-      date: "Feb 17, 2026",
-      status: "Locked",
-      completed: false,
-      notes:
-        "Complete 10 minutes of breathing and grounding exercises before each study session.",
-      studentComment: "",
-      attachment: null,
-    },
-    {
-      id: 3,
-      title: "Submit Weekly Stress Reflection",
-      date: "Feb 24, 2026",
-      status: "Locked",
-      completed: false,
-      notes:
-        "Write a short weekly reflection about exam fears and improvements.",
-      studentComment: "",
-      attachment: null,
-    },
-    {
-      id: 4,
-      title: "Attend Follow-Up Progress Review",
-      date: "Mar 03, 2026",
-      status: "Locked",
-      completed: false,
-      notes:
-        "Attend follow-up counseling review and discuss progress.",
-      studentComment: "",
-      attachment: null,
-    },
-  ]);
+  const [steps, setSteps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
 
+  const loadPlans = useCallback(async () => {
+    if (!user?.id || !user?.token) {
+      setLoadError("Please sign in to view treatment plans.");
+      setSteps([]);
+      setLoading(false);
+      return;
+    }
 
+    const studentId = String(user.id);
+
+    setLoading(true);
+    setLoadError("");
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/treatment-plans/student/${studentId}`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+        }
+      );
+
+      if (res.status === 401) {
+        setLoadError("Session expired. Please sign in again.");
+        setSteps([]);
+        return;
+      }
+
+      if (res.status === 403) {
+        const err = await res.json().catch(() => ({}));
+        setLoadError(err.error || "You cannot view these treatment plans.");
+        setSteps([]);
+        return;
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to load treatment plans");
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const sorted = [...list].sort((a, b) => a.id - b.id);
+      setSteps(sorted.map(mapApiPlanToStep));
+
+      const times = sorted
+        .map((p) => {
+          const u = p.updated_at || p.updatedAt;
+          return u ? new Date(u).getTime() : 0;
+        })
+        .filter(Boolean);
+      if (times.length) {
+        setLastUpdated(new Date(Math.max(...times)));
+      } else {
+        setLastUpdated(null);
+      }
+    } catch (e) {
+      setLoadError(e.message || "Failed to load treatment plans");
+      setSteps([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, user?.token]);
+
+  useEffect(() => {
+    loadPlans();
+  }, [loadPlans]);
 
   const toggleStepDetails = (id) => {
     setExpandedStepId(expandedStepId === id ? null : id);
@@ -71,8 +131,8 @@ export default function TreatmentPlanTab({ onViewReport }) {
     if (currentIndex === -1) return;
 
     if (currentIndex > 0 && !steps[currentIndex - 1].completed) {
-      alert(
-        `You cannot complete Step ${id} yet. Please finish Step ${id - 1} first to unlock this step.`
+      toast.warning(
+        `Finish step ${currentIndex} before completing this step.`
       );
       return;
     }
@@ -97,22 +157,46 @@ export default function TreatmentPlanTab({ onViewReport }) {
     );
   };
 
-  const handleConfirmCompletion = (id) => {
-    const currentIndex = steps.findIndex((step) => step.id === id);
-    if (currentIndex === -1) return;
+  const handleConfirmCompletion = async (id) => {
+    const step = steps.find((s) => s.id === id);
+    if (!step || !user?.token) return;
 
-    const updatedSteps = [...steps];
-    updatedSteps[currentIndex].completed = true;
-    updatedSteps[currentIndex].status = "Completed";
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/treatment-plans/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify({
+          appointment_id: step.appointmentId,
+          counsellor_id: step.counsellorId,
+          student_id: step.studentId,
+          title: step.title,
+          description: step.notes,
+          status: "Completed",
+        }),
+      });
 
-    if (currentIndex + 1 < updatedSteps.length) {
-      if (!updatedSteps[currentIndex + 1].completed) {
-        updatedSteps[currentIndex + 1].status = "Current Step";
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Could not mark step complete");
       }
-    }
 
-    setSteps(updatedSteps);
-    setPendingConfirmStepId(null);
+      const currentIndex = steps.findIndex((s) => s.id === id);
+      if (currentIndex === -1) return;
+
+      setSteps((prev) => {
+        const next = [...prev];
+        next[currentIndex] = { ...next[currentIndex], completed: true };
+        return next;
+      });
+      setPendingConfirmStepId(null);
+      toast.success("Step marked complete");
+      await loadPlans();
+    } catch (e) {
+      toast.error(e.message || "Update failed");
+    }
   };
 
   const handleCancelConfirmation = () => {
@@ -120,22 +204,49 @@ export default function TreatmentPlanTab({ onViewReport }) {
   };
 
   const getProgress = () => {
+    if (!steps.length) return 0;
     const completedCount = steps.filter((step) => step.completed).length;
     return Math.round((completedCount / steps.length) * 100);
   };
 
-  const allStepsCompleted = steps.every((step) => step.completed);
+  const allStepsCompleted =
+    steps.length > 0 && steps.every((step) => step.completed);
+
+  if (loading) {
+    return (
+      <div className="animate-fadeIn space-y-6">
+        <h2 className="text-2xl font-black tracking-tight">
+          Active Treatment Plan
+        </h2>
+        <p className="text-slate-500 font-medium">Loading your plans…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fadeIn space-y-10">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-2xl font-black tracking-tight">
           Active Treatment Plan
         </h2>
         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-4 py-2 rounded-full">
-          Last Updated: Mar 03, 2026
+          Last Updated:{" "}
+          {lastUpdated
+            ? lastUpdated.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "—"}
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm font-semibold border border-red-100 flex items-start gap-2">
+          <FaExclamationCircle className="mt-0.5 shrink-0" />
+          {loadError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* LEFT SIDE - STEP BY STEP PLAN */}
@@ -150,6 +261,13 @@ export default function TreatmentPlanTab({ onViewReport }) {
             </div>
           </div>
 
+          {!steps.length && !loadError && (
+            <div className="bg-white rounded-3xl p-8 border border-slate-100 text-center text-slate-600 font-medium">
+              No treatment plans assigned yet. Your counsellor will add steps
+              here when ready.
+            </div>
+          )}
+
           <div className="space-y-5">
             {steps.map((step, index) => {
               const isLocked =
@@ -160,8 +278,9 @@ export default function TreatmentPlanTab({ onViewReport }) {
               return (
                 <div
                   key={step.id}
-                  className={`bg-white rounded-3xl p-6 shadow-sm border border-slate-100 ${isLocked ? "cursor-not-allowed" : "cursor-default"
-                    }`}
+                  className={`bg-white rounded-3xl p-6 shadow-sm border border-slate-100 ${
+                    isLocked ? "cursor-not-allowed" : "cursor-default"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1">
@@ -181,7 +300,7 @@ export default function TreatmentPlanTab({ onViewReport }) {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 flex-wrap">
                           <h4 className="font-black text-slate-800 text-base">
-                            Step {step.id} | {step.date}
+                            Step {index + 1} | {step.date}
                           </h4>
 
                           {step.completed ? (
@@ -206,31 +325,34 @@ export default function TreatmentPlanTab({ onViewReport }) {
                         <p className="mt-3 text-slate-600 font-medium">
                           {step.title}
                         </p>
+                        {step.counsellorName && (
+                          <p className="mt-1 text-xs font-bold text-slate-400 uppercase tracking-wide">
+                            Counsellor: {step.counsellorName}
+                          </p>
+                        )}
 
                         <div
-                          className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedStepId === step.id
-                            ? "max-h-[900px] opacity-100 mt-4"
-                            : "max-h-0 opacity-0"
-                            }`}
+                          className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            expandedStepId === step.id
+                              ? "max-h-[900px] opacity-100 mt-4"
+                              : "max-h-0 opacity-0"
+                          }`}
                         >
                           <div className="space-y-4">
-                            {/* Additional Notes Section */}
                             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                               <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-3">
                                 Additional Notes
                               </label>
                               <p className="text-sm text-slate-600 leading-relaxed">
-                                {step.notes}
+                                {step.notes || "—"}
                               </p>
                             </div>
 
-                            {/* Student Submission Section */}
                             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                               <label className="block text-xs font-black uppercase tracking-widest text-slate-400">
                                 Student Submission
                               </label>
 
-                              {/* Comment Section */}
                               <div>
                                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
                                   Student Comment (Optional)
@@ -239,14 +361,16 @@ export default function TreatmentPlanTab({ onViewReport }) {
                                   rows={3}
                                   value={step.studentComment}
                                   onChange={(e) =>
-                                    handleCommentChange(step.id, e.target.value)
+                                    handleCommentChange(
+                                      step.id,
+                                      e.target.value
+                                    )
                                   }
                                   placeholder="Add your short comment about how you completed this step..."
                                   className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 outline-none focus:ring-2 focus:ring-blue-100"
                                 />
                               </div>
 
-                              {/* Attachment Section */}
                               <div>
                                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
                                   Supporting File (Optional)
@@ -278,17 +402,20 @@ export default function TreatmentPlanTab({ onViewReport }) {
                                 </div>
                               </div>
 
-                              {/* Confirm Section */}
                               {isPendingConfirm && !step.completed && (
                                 <div className="pt-2 flex gap-3 flex-wrap">
                                   <button
-                                    onClick={() => handleConfirmCompletion(step.id)}
+                                    type="button"
+                                    onClick={() =>
+                                      handleConfirmCompletion(step.id)
+                                    }
                                     className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all"
                                   >
                                     Confirm Step Completion
                                   </button>
 
                                   <button
+                                    type="button"
                                     onClick={handleCancelConfirmation}
                                     className="px-5 py-3 bg-white border border-slate-200 text-slate-500 hover:text-slate-800 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
                                   >
@@ -297,7 +424,6 @@ export default function TreatmentPlanTab({ onViewReport }) {
                                 </div>
                               )}
 
-                              {/* Completed Summary */}
                               {step.completed && (
                                 <div className="pt-2 space-y-2">
                                   {step.studentComment && (
@@ -325,9 +451,9 @@ export default function TreatmentPlanTab({ onViewReport }) {
                       </div>
                     </div>
 
-                    {/* Eye icon only for Current Step and Completed Steps */}
-                    {(step.status === "Current Step" || step.completed) && (
+                    {(step.completed || !isLocked) && (
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleStepDetails(step.id);
@@ -352,73 +478,27 @@ export default function TreatmentPlanTab({ onViewReport }) {
             })}
           </div>
 
-          {/* VIEW REPORT BUTTON BELOW STEPS */}
           <div className="flex justify-end mt-6">
             <div className="flex flex-col items-end">
               <button
+                type="button"
                 onClick={() => {
                   if (!allStepsCompleted) {
-                    alert("Please complete all treatment steps before viewing the report.");
+                    toast.info(
+                      "Please complete all treatment steps before viewing the report."
+                    );
                     return;
                   }
 
-                  // ✅ CLEAR STORAGE
                   localStorage.removeItem("treatmentSteps");
-
-                  // ✅ RESET STEPS
-                  setSteps([
-                    {
-                      id: 1,
-                      title: "Follow Structured Study Schedule",
-                      date: "Feb 10, 2026",
-                      status: "Current Step",
-                      completed: false,
-                      notes:
-                        "Follow the study timetable prepared during the counseling session for at least 5 days. Focus on fixed study hours, short breaks, and realistic daily targets.",
-                      studentComment: "",
-                      attachment: null,
-                    },
-                    {
-                      id: 2,
-                      title: "Practice Daily Anxiety Reduction Exercise",
-                      date: "Feb 17, 2026",
-                      status: "Locked",
-                      completed: false,
-                      notes:
-                        "Complete 10 minutes of breathing and grounding exercises before each study session. Record how your body and mind feel before and after the exercise.",
-                      studentComment: "",
-                      attachment: null,
-                    },
-                    {
-                      id: 3,
-                      title: "Submit Weekly Stress Reflection",
-                      date: "Feb 24, 2026",
-                      status: "Locked",
-                      completed: false,
-                      notes:
-                        "Write a short weekly reflection about exam fears, negative thoughts, and improvements in concentration, confidence, and time management.",
-                      studentComment: "",
-                      attachment: null,
-                    },
-                    {
-                      id: 4,
-                      title: "Attend Follow-Up Progress Review",
-                      date: "Mar 03, 2026",
-                      status: "Locked",
-                      completed: false,
-                      notes:
-                        "Attend the follow-up counseling review and discuss whether the stress level has reduced, whether the study routine is working, and what adjustments are needed.",
-                      studentComment: "",
-                      attachment: null,
-                    },
-                  ]);
-
-                  onViewReport();
+                  loadPlans();
+                  onViewReport?.();
                 }}
-                className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${allStepsCompleted
-                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/50"
-                  : "bg-slate-300 text-slate-500 cursor-pointer shadow-none"
-                  }`}
+                className={`px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg ${
+                  allStepsCompleted
+                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/50"
+                    : "bg-slate-300 text-slate-500 cursor-pointer shadow-none"
+                }`}
               >
                 View Report
               </button>
