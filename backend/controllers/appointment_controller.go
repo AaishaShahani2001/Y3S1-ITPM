@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/models"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -552,6 +554,18 @@ func CancelAppointmentByCounselor(c *gin.Context) {
 
 	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 
+	// Send cancellation email to the student (non-blocking).
+	if err := email.SendAppointmentCancelledByCounselor(
+		appointment.StudentEmail,
+		appointment.StudentName,
+		user.Name,
+		appointment.Date,
+		appointment.TimeSlot,
+		appointment.CounselorCancelNote,
+	); err != nil {
+		log.Printf("appointment cancellation email failed: appointment=%d err=%v", appointment.ID, err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Appointment cancelled successfully",
 		"status":  appointment.Status,
@@ -614,6 +628,19 @@ func UpdateAppointmentStatusForCounselor(c *gin.Context) {
 	if err := initializers.DB.Save(&appointment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update status"})
 		return
+	}
+
+	// When counselor confirms, notify the student via email (non-blocking).
+	if nextStatus == "Confirmed" {
+		if err := email.SendAppointmentConfirmed(
+			appointment.StudentEmail,
+			appointment.StudentName,
+			user.Name,
+			appointment.Date,
+			appointment.TimeSlot,
+		); err != nil {
+			log.Printf("appointment confirmation email failed: appointment=%d err=%v", appointment.ID, err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

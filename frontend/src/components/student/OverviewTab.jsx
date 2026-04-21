@@ -108,6 +108,13 @@ export default function OverviewTab() {
                 >
                     <FaPlus /> Book New Session
                 </button>
+                <button
+                    type="button"
+                    onClick={() => navigate("/student-dashboard?tab=mood-tracker")}
+                    className="bg-white text-blue-700 border border-blue-200 px-6 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center gap-3"
+                >
+                    <FaCheckCircle /> Mood Tracker
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
