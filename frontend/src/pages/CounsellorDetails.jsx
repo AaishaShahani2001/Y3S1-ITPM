@@ -50,7 +50,7 @@ export default function CounsellorDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex justify-center items-center">
+      <div className="min-h-screen bg-[#FAF3E0] flex justify-center items-center">
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
       </div>
     );
@@ -58,7 +58,7 @@ export default function CounsellorDetails() {
 
   if (!counsellor) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-linear-to-b from-sky-50/90 via-blue-50/50 to-slate-50 px-4 text-center">
+      <div className="min-h-screen flex flex-col justify-center items-center bg-linear-to-b from-[#fdf7ea] via-[#f9f0dd] to-[#f5ead3] px-4 text-center">
         <h2 className="text-2xl font-black text-slate-900 mb-2">Counsellor Not Found</h2>
         <p className="text-slate-500 mb-6 font-medium">The specialist you are looking for does not exist or has been removed.</p>
         <Link to="/counsellors" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Back to Directory</Link>
@@ -67,7 +67,7 @@ export default function CounsellorDetails() {
   }
 
   return (
-    <main className="min-h-screen bg-linear-to-b from-sky-50/90 via-blue-50/50 to-slate-50 pb-16">
+    <main className="min-h-screen bg-linear-to-b from-[#fdf7ea] via-[#f9f0dd] to-[#f5ead3] pb-16">
       {/* HEADER SECTION - PREMIUM GRADIENT */}
       <div className="bg-linear-to-br from-blue-700 via-blue-600 to-indigo-700 pt-8 pb-24 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
