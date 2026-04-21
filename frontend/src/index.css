@@ -1,5 +1,47 @@
 @import "tailwindcss";
 
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    background-color: #f3e8cf;
+    color: #0f172a;
+  }
+
+  /* Main surface (page background). */
+  .app-beige-theme .min-h-screen.bg-white,
+  .app-beige-theme .min-h-screen.bg-slate-50,
+  .app-beige-theme .min-h-screen.bg-gray-50,
+  .app-beige-theme .min-h-screen.bg-\[\#f8fafc\] {
+    background-color: #f3e8cf !important;
+  }
+
+  /* Card/form surfaces (lighter than main bg for clear contrast). */
+  .app-beige-theme .bg-white,
+  .app-beige-theme .bg-slate-50,
+  .app-beige-theme .bg-gray-50,
+  .app-beige-theme .bg-slate-100 {
+    background-color: #fff9ee !important;
+  }
+
+  .app-beige-theme input,
+  .app-beige-theme textarea,
+  .app-beige-theme select {
+    background-color: #fffaf2;
+    border-color: #e8dcc3;
+  }
+
+  .app-beige-theme input:focus,
+  .app-beige-theme textarea:focus,
+  .app-beige-theme select:focus {
+    border-color: #93c5fd;
+  }
+}
+
 @theme {
   @keyframes float {
     0%, 100% { transform: translateY(0px); }

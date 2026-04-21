@@ -70,7 +70,7 @@ export default function Counsellors() {
   }, [q, cat, counsellors]);
 
   return (
-    <main className="min-h-screen bg-linear-to-b from-sky-50/90 via-blue-50/50 to-slate-50 pb-16">
+    <main className="min-h-screen bg-linear-to-b from-[#fdf7ea] via-[#f9f0dd] to-[#f5ead3] pb-16">
 
       {/* ================= HERO SECTION ================= */}
       <section className="relative h-80 w-full overflow-hidden">

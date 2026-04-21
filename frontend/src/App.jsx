@@ -31,13 +31,13 @@ import MyEvents from "./pages/student/MyEvents";
 import QRScanner from "./pages/admin/QRScanner";
 export default function App() {
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col relative overflow-x-hidden">
+    <div className="app-beige-theme min-h-screen bg-[#F3E8CF] text-slate-900 flex flex-col relative overflow-x-hidden transition-colors duration-500">
       
       {/* NAVBAR */}
       <Navbar />
 
       {/* PAGE CONTENT */}
-      <main className="grow">
+      <main className="grow relative">
         <Routes>
           {/* Home Page */}
           <Route
