@@ -13,6 +13,11 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    window.location.href = "/auth";
+  };
+
   const menuItems = [
     { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
     { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
@@ -31,17 +36,17 @@ const AdminDashboard = () => {
 
       {/* SIDEBAR */}
       <aside
-        className={`relative shrink-0 border-r border-slate-200 bg-white shadow-sm transition-[width] duration-300 ease-in-out ${
+        className={`relative shrink-0 border-r border-[#e8dcc3] bg-[#fff9ee] text-slate-800 shadow-sm transition-[width] duration-300 ease-in-out ${
           isSidebarOpen ? 'w-72' : 'w-20'
         } flex flex-col`}
       >
         
         <div className="h-20 flex items-center px-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 text-white flex items-center justify-center rounded-xl">
+            <div className="w-10 h-10 bg-blue-600 text-white flex items-center justify-center rounded-xl">
               <FiUserCheck />
             </div>
-            {isSidebarOpen && <span className="font-bold">MindBridge Admin</span>}
+            {isSidebarOpen && <span className="font-bold text-slate-900">MindBridge Admin</span>}
           </div>
         </div>
 
@@ -52,8 +57,8 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab(item.name)}
               className={`w-full flex items-center gap-3 p-3 rounded-xl ${
                 activeTab === item.name
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-500 hover:bg-slate-100'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-600 hover:bg-[#f3e8cf] hover:text-slate-900'
               }`}
             >
               {item.icon}
@@ -62,10 +67,11 @@ const AdminDashboard = () => {
           ))}
         </nav>
 
-        <div className="border-t border-slate-50 p-4">
+        <div className="border-t border-[#e8dcc3] p-4">
           <button
             type="button"
-            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-rose-500 transition-colors hover:bg-rose-50 ${
+            onClick={handleLogout}
+            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50 ${
               !isSidebarOpen ? 'justify-center' : ''
             }`}
           >
@@ -78,7 +84,7 @@ const AdminDashboard = () => {
           type="button"
           aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           onClick={() => setSidebarOpen(!isSidebarOpen)}
-          className="absolute -right-3 top-24 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-indigo-200 hover:text-indigo-600"
+          className="absolute -right-3 top-24 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-[#e8dcc3] bg-[#fff9ee] text-slate-500 shadow-sm transition-colors hover:border-blue-400 hover:text-blue-500"
         >
           {isSidebarOpen ? <FiX size={14} /> : <FiMenu size={14} />}
         </button>
