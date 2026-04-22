@@ -23,5 +23,7 @@ type Registration struct {
 
 	Status string `gorm:"default:confirmed" json:"status"`
 
+	Attended bool `gorm:"default:false" json:"attended"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
