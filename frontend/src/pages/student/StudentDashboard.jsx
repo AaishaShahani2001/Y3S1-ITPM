@@ -38,13 +38,15 @@ export default function StudentDashboard() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(null);
   const [reportUnlocked, setReportUnlocked] = useState(false);
+  const [reportPlanId, setReportPlanId] = useState(null);
   const [headerProfile, setHeaderProfile] = useState({
     displayName: "",
     subtitle: "Student",
   });
 
-  const handleViewReport = () => {
-    setReportUnlocked(true);
+ const handleViewReport = (planId) => {
+    setReportPlanId(planId ?? null);
+    setReportUnlocked(!!planId);
     setActiveTab("reports");
   };
 
@@ -211,7 +213,10 @@ export default function StudentDashboard() {
             <TreatmentPlanTab onViewReport={handleViewReport} />
           )}
           {activeTab === "reports" && (
-            <MyReportView reportUnlocked={reportUnlocked} />
+            <MyReportView reportUnlocked={reportUnlocked} 
+            reportPlanId={reportPlanId}
+            
+            />
           )}
 
           {activeTab === "overview" && <OverviewTab />}
