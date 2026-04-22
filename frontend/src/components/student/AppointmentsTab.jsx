@@ -3,69 +3,6 @@ import { FaCheckCircle, FaClock, FaUserMd } from "react-icons/fa";
 import { toast } from "react-toastify";
 import ConfirmationModel from "../ConfirmationModel";
 
-const DUMMY_APPOINTMENTS = [
-    {
-        id: 1,
-        bookingId: "MB-APT-1001",
-        counselorName: "Dr. Andrea Cruz",
-        counselorEmail: "andrea.cruz@mindbridge.local",
-        date: "2026-04-02",
-        timeSlot: "09:00 AM - 10:00 AM",
-        status: "Pending",
-        age: 20,
-        contactNumber: "0758965478",
-        guardianPhoneNumber: "0758965478",
-        medicalNotes: "Mild anxiety before exams.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-    },
-    {
-        id: 2,
-        bookingId: "MB-APT-1002",
-        counselorName: "Dr. Miguel Reyes",
-        counselorEmail: "miguel.reyes@mindbridge.local",
-        date: "2026-03-20",
-        timeSlot: "01:00 PM - 02:00 PM",
-        status: "Completed",
-        age: 21,
-        contactNumber: "0758965478",
-        guardianPhoneNumber: "0758965478",
-        medicalNotes: "Follow-up counseling session.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-    },
-    {
-        id: 3,
-        bookingId: "MB-APT-1003",
-        counselorName: "Dr. Lara Santos",
-        counselorEmail: "lara.santos@mindbridge.local",
-        date: "2026-03-28",
-        timeSlot: "03:00 PM - 04:00 PM",
-        status: "Confirmed",
-        age: 19,
-        contactNumber: "0758965478",
-        guardianPhoneNumber: "0758965478",
-        medicalNotes: "Needs coping strategies for stress.",
-        studentCancelNote: "",
-        counselorCancelNote: "",
-    },
-    {
-        id: 4,
-        bookingId: "MB-APT-1004",
-        counselorName: "Dr. Paula Lim",
-        counselorEmail: "paula.lim@mindbridge.local",
-        date: "2026-03-18",
-        timeSlot: "10:00 AM - 11:00 AM",
-        status: "Cancelled",
-        age: 22,
-        contactNumber: "0758965478",
-        guardianPhoneNumber: "0758965478",
-        medicalNotes: "Sleep pattern concerns.",
-        studentCancelNote: "",
-        counselorCancelNote: "Urgent clinic schedule adjustment.",
-    },
-];
-
 export default function AppointmentsTab() {
     const [filter, setFilter] = useState("all");
     const [appointments, setAppointments] = useState([]);
@@ -81,17 +18,35 @@ export default function AppointmentsTab() {
         guardianPhoneNumber: "",
         medicalNotes: "",
     });
-    const [editErrors, setEditErrors] = useState({
-        age: "",
-        contactNumber: "",
-        guardianPhoneNumber: "",
-        medicalNotes: "",
-    });
+    const [editFieldErrors, setEditFieldErrors] = useState({});
+
+    const user = (() => {
+        try {
+            const raw = localStorage.getItem("user");
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+        }
+    })();
 
     const loadAppointments = async () => {
+        if (!user?.token) {
+            setAppointments([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            setAppointments(DUMMY_APPOINTMENTS);
+            const res = await fetch("http://localhost:3000/api/appointments/student", {
+                headers: { Authorization: `Bearer ${user.token}` },
+            });
+            if (!res.ok) {
+                toast.error("Failed to load appointments");
+                setAppointments([]);
+                return;
+            }
+            const data = await res.json();
+            setAppointments(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Failed to load student appointments", err);
             toast.error("Failed to load appointments");
@@ -111,90 +66,82 @@ export default function AppointmentsTab() {
 
     useEffect(() => {
         loadAppointments();
-    }, []);
+    }, [user?.token]);
+
+    /** Keep only digits, max length 10 (for controlled inputs). */
+    const toTenDigits = (value) => String(value ?? "").replace(/\D/g, "").slice(0, 10);
+
+    const isTenDigitPhone = (value) => /^\d{10}$/.test(String(value ?? "").trim());
+
+    const validateEditForm = () => {
+        const errors = {};
+        const ageNum = Number(editForm.age);
+        const ageStr = String(editForm.age ?? "").trim();
+        if (!ageStr || Number.isNaN(ageNum) || !Number.isInteger(ageNum) || ageNum < 1 || ageNum > 120) {
+            errors.age = "Enter a whole number between 1 and 120";
+        }
+        const contact = editForm.contactNumber.trim();
+        if (!contact) {
+            errors.contactNumber = "Contact number is required";
+        } else if (!isTenDigitPhone(contact)) {
+            errors.contactNumber = "Enter exactly 10 digits (numbers only)";
+        }
+        const guardian = editForm.guardianPhoneNumber.trim();
+        if (!guardian) {
+            errors.guardianPhoneNumber = "Guardian phone is required";
+        } else if (!isTenDigitPhone(guardian)) {
+            errors.guardianPhoneNumber = "Enter exactly 10 digits (numbers only)";
+        }
+        const notes = editForm.medicalNotes ?? "";
+        if (notes.length > 5000) {
+            errors.medicalNotes = "Keep medical notes to 5,000 characters or less";
+        }
+        setEditFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
 
     const openEditModal = (appointment) => {
         setEditingAppt(appointment);
+        setEditFieldErrors({});
         setEditForm({
             age: String(appointment.age || ""),
-            contactNumber: appointment.contactNumber || "",
-            guardianPhoneNumber: appointment.guardianPhoneNumber || "",
+            contactNumber: toTenDigits(appointment.contactNumber || ""),
+            guardianPhoneNumber: toTenDigits(appointment.guardianPhoneNumber || ""),
             medicalNotes: appointment.medicalNotes || "",
         });
-        setEditErrors({
-            age: "",
-            contactNumber: "",
-            guardianPhoneNumber: "",
-            medicalNotes: "",
-        });
     };
 
-    const validateEditForm = () => {
-        const errors = {
-            age: "",
-            contactNumber: "",
-            guardianPhoneNumber: "",
-            medicalNotes: "",
-        };
-
-        const ageNum = Number(editForm.age);
-        if (!editForm.age) {
-            errors.age = "Age is required.";
-        } else if (!Number.isInteger(ageNum) || ageNum < 1 || ageNum > 120) {
-            errors.age = "Enter a valid age between 1 and 120.";
-        }
-
-        const contact = editForm.contactNumber.trim();
-        if (!contact) {
-            errors.contactNumber = "Contact number is required.";
-        } else if (!/^\d{10}$/.test(contact)) {
-            errors.contactNumber = "Contact number must be exactly 10 digits.";
-        }
-
-        const guardian = editForm.guardianPhoneNumber.trim();
-        if (!guardian) {
-            errors.guardianPhoneNumber = "Guardian phone number is required.";
-        } else if (!/^\d{10}$/.test(guardian)) {
-            errors.guardianPhoneNumber = "Guardian phone number must be exactly 10 digits.";
-        }
-
-        const notes = editForm.medicalNotes.trim();
-        if (!notes) {
-            errors.medicalNotes = "Medical notes are required.";
-        } else if (notes.length < 5) {
-            errors.medicalNotes = "Medical notes must be at least 5 characters.";
-        } else if (notes.length > 300) {
-            errors.medicalNotes = "Medical notes must not exceed 300 characters.";
-        }
-
-        setEditErrors(errors);
-        return Object.values(errors).every((value) => !value);
-    };
-
-    const submitEdit = () => {
+    const submitEdit = async () => {
         if (!editingAppt) return;
         const appointmentId = editingAppt.id || editingAppt.ID;
         if (!validateEditForm()) {
-            toast.error("Please fix the form errors.");
+            toast.error("Please fix the errors below");
             return;
         }
 
         try {
             setSavingEdit(true);
-            setAppointments((prev) =>
-                prev.map((appt) => {
-                    if ((appt.id || appt.ID) !== appointmentId) return appt;
-                    return {
-                        ...appt,
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/student`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${user.token}`,
+                },
+                body: JSON.stringify({
                     age: Number(editForm.age),
                     contactNumber: editForm.contactNumber.trim(),
                     guardianPhoneNumber: editForm.guardianPhoneNumber.trim(),
                     medicalNotes: editForm.medicalNotes,
-                    };
-                })
-            );
+                }),
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to update appointment");
+                return;
+            }
             toast.success("Appointment updated");
             setEditingAppt(null);
+            await loadAppointments();
         } catch (err) {
             console.error("Failed to update appointment", err);
             toast.error("Failed to update appointment");
@@ -203,7 +150,7 @@ export default function AppointmentsTab() {
         }
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!deletingAppt) return;
         const appointmentId = deletingAppt.id || deletingAppt.ID;
         const statusLower = (deletingAppt.status || "").toLowerCase();
@@ -213,23 +160,25 @@ export default function AppointmentsTab() {
         }
         try {
             setDeleting(true);
-            setAppointments((prev) =>
-                prev
-                    .map((appt) => {
-                        if ((appt.id || appt.ID) !== appointmentId) return appt;
-                        if (statusLower === "confirmed") {
-                            return {
-                                ...appt,
-                                studentCancelNote: cancelNote.trim(),
-                            };
-                        }
-                        return null;
-                    })
-                    .filter(Boolean)
-            );
+            const res = await fetch(`http://localhost:3000/api/appointments/${appointmentId}/student`, {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${user.token}`,
+                },
+                body: statusLower === "confirmed"
+                    ? JSON.stringify({ note: cancelNote.trim() })
+                    : undefined,
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(errData.error || "Failed to delete appointment");
+                return;
+            }
             toast.success(statusLower === "confirmed" ? "Cancellation note sent" : "Appointment deleted");
             setDeletingAppt(null);
             setCancelNote("");
+            await loadAppointments();
         } catch (err) {
             console.error("Failed to delete appointment", err);
             toast.error("Failed to delete appointment");
@@ -423,81 +372,137 @@ export default function AppointmentsTab() {
                         <h3 className="text-lg font-black text-slate-900">Edit Appointment</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Age</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1" htmlFor="edit-age">
+                                    Age <span className="text-red-500">*</span>
+                                </label>
                                 <input
+                                    id="edit-age"
                                     type="number"
                                     min="1"
+                                    max="120"
+                                    step="1"
+                                    inputMode="numeric"
                                     value={editForm.age}
                                     onChange={(e) => {
                                         setEditForm({ ...editForm, age: e.target.value });
-                                        if (editErrors.age) setEditErrors((prev) => ({ ...prev, age: "" }));
+                                        setEditFieldErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.age;
+                                            return next;
+                                        });
                                     }}
-                                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-blue-200"
+                                    aria-invalid={Boolean(editFieldErrors.age)}
+                                    className={`w-full border-2 rounded-xl p-3 text-sm outline-none focus:border-blue-200 ${
+                                        editFieldErrors.age ? "border-red-200 bg-red-50/30" : "border-slate-100"
+                                    }`}
                                 />
-                                {editErrors.age && (
-                                    <p className="mt-1 text-[10px] font-bold text-red-500">{editErrors.age}</p>
+                                {editFieldErrors.age && (
+                                    <p className="text-[10px] text-red-600 font-medium mt-1">{editFieldErrors.age}</p>
                                 )}
                             </div>
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Contact Number</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1" htmlFor="edit-contact">
+                                    Contact Number <span className="text-red-500">*</span>
+                                </label>
                                 <input
+                                    id="edit-contact"
                                     type="text"
+                                    inputMode="numeric"
+                                    autoComplete="tel"
+                                    placeholder="10 digits, e.g. 0771234567"
                                     maxLength={10}
                                     value={editForm.contactNumber}
                                     onChange={(e) => {
-                                        const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
-                                        setEditForm({ ...editForm, contactNumber: digitsOnly });
-                                        if (editErrors.contactNumber) setEditErrors((prev) => ({ ...prev, contactNumber: "" }));
+                                        setEditForm({
+                                            ...editForm,
+                                            contactNumber: toTenDigits(e.target.value),
+                                        });
+                                        setEditFieldErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.contactNumber;
+                                            return next;
+                                        });
                                     }}
-                                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-blue-200"
+                                    aria-invalid={Boolean(editFieldErrors.contactNumber)}
+                                    className={`w-full border-2 rounded-xl p-3 text-sm outline-none focus:border-blue-200 tabular-nums ${
+                                        editFieldErrors.contactNumber ? "border-red-200 bg-red-50/30" : "border-slate-100"
+                                    }`}
                                 />
-                                {editErrors.contactNumber && (
-                                    <p className="mt-1 text-[10px] font-bold text-red-500">{editErrors.contactNumber}</p>
+                                {editFieldErrors.contactNumber && (
+                                    <p className="text-[10px] text-red-600 font-medium mt-1">{editFieldErrors.contactNumber}</p>
                                 )}
                             </div>
                             <div className="md:col-span-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Guardian Phone Number</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1" htmlFor="edit-guardian">
+                                    Guardian Phone Number <span className="text-red-500">*</span>
+                                </label>
                                 <input
+                                    id="edit-guardian"
                                     type="text"
+                                    inputMode="numeric"
+                                    autoComplete="tel"
+                                    placeholder="10 digits, e.g. 0779876543"
                                     maxLength={10}
                                     value={editForm.guardianPhoneNumber}
                                     onChange={(e) => {
-                                        const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
-                                        setEditForm({ ...editForm, guardianPhoneNumber: digitsOnly });
-                                        if (editErrors.guardianPhoneNumber) setEditErrors((prev) => ({ ...prev, guardianPhoneNumber: "" }));
+                                        setEditForm({
+                                            ...editForm,
+                                            guardianPhoneNumber: toTenDigits(e.target.value),
+                                        });
+                                        setEditFieldErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.guardianPhoneNumber;
+                                            return next;
+                                        });
                                     }}
-                                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-blue-200"
+                                    aria-invalid={Boolean(editFieldErrors.guardianPhoneNumber)}
+                                    className={`w-full border-2 rounded-xl p-3 text-sm outline-none focus:border-blue-200 tabular-nums ${
+                                        editFieldErrors.guardianPhoneNumber ? "border-red-200 bg-red-50/30" : "border-slate-100"
+                                    }`}
                                 />
-                                {editErrors.guardianPhoneNumber && (
-                                    <p className="mt-1 text-[10px] font-bold text-red-500">{editErrors.guardianPhoneNumber}</p>
+                                {editFieldErrors.guardianPhoneNumber && (
+                                    <p className="text-[10px] text-red-600 font-medium mt-1">{editFieldErrors.guardianPhoneNumber}</p>
                                 )}
                             </div>
                             <div className="md:col-span-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Medical Notes</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1" htmlFor="edit-notes">
+                                    Medical Notes <span className="text-slate-400 font-bold normal-case">(optional)</span>
+                                </label>
                                 <textarea
+                                    id="edit-notes"
                                     rows={3}
+                                    maxLength={5000}
                                     value={editForm.medicalNotes}
                                     onChange={(e) => {
                                         setEditForm({ ...editForm, medicalNotes: e.target.value });
-                                        if (editErrors.medicalNotes) setEditErrors((prev) => ({ ...prev, medicalNotes: "" }));
+                                        setEditFieldErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.medicalNotes;
+                                            return next;
+                                        });
                                     }}
-                                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-blue-200"
+                                    aria-invalid={Boolean(editFieldErrors.medicalNotes)}
+                                    className={`w-full border-2 rounded-xl p-3 text-sm outline-none focus:border-blue-200 ${
+                                        editFieldErrors.medicalNotes ? "border-red-200 bg-red-50/30" : "border-slate-100"
+                                    }`}
                                 />
-                                {editErrors.medicalNotes && (
-                                    <p className="mt-1 text-[10px] font-bold text-red-500">{editErrors.medicalNotes}</p>
-                                )}
+                                <div className="flex justify-between items-center mt-1">
+                                    {editFieldErrors.medicalNotes ? (
+                                        <p className="text-[10px] text-red-600 font-medium">{editFieldErrors.medicalNotes}</p>
+                                    ) : (
+                                        <span />
+                                    )}
+                                    <p className="text-[10px] text-slate-400 font-medium tabular-nums">
+                                        {(editForm.medicalNotes || "").length} / 5000
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={() => {
                                     setEditingAppt(null);
-                                    setEditErrors({
-                                        age: "",
-                                        contactNumber: "",
-                                        guardianPhoneNumber: "",
-                                        medicalNotes: "",
-                                    });
+                                    setEditFieldErrors({});
                                 }}
                                 className="px-4 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
                             >

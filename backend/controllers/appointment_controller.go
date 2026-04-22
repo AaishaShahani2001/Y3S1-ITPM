@@ -1,14 +1,71 @@
 package controllers
 
 import (
+	"backend/email"
 	"backend/initializers"
 	"backend/models"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+func normalizeAppointmentTimeSlot(raw string) (string, string, error) {
+	clean := strings.TrimSpace(raw)
+	layouts := []string{
+		"03:04 PM",
+		"3:04 PM",
+		"03:04:05 PM",
+		"3:04:05 PM",
+		"15:04",
+		"15:04:05",
+	}
+
+	var parsed time.Time
+	var err error
+	for _, layout := range layouts {
+		parsed, err = time.Parse(layout, clean)
+		if err == nil {
+			return parsed.Format("03:04 PM"), parsed.Format("15:04"), nil
+		}
+	}
+	return "", "", err
+}
+
+func resolveCounsellorIDs(rawID string) (uint, []uint, error) {
+	parsedID, err := strconv.ParseUint(strings.TrimSpace(rawID), 10, 32)
+	if err != nil || parsedID == 0 {
+		return 0, nil, err
+	}
+
+	primaryID := uint(parsedID)
+	candidates := []uint{primaryID}
+
+	var counsellorApp models.CounsellorApplication
+	if appErr := initializers.DB.Where("id = ?", primaryID).First(&counsellorApp).Error; appErr == nil && counsellorApp.UserId != 0 {
+		if counsellorApp.UserId != primaryID {
+			candidates = append(candidates, counsellorApp.UserId)
+		}
+	}
+
+	seen := make(map[uint]struct{}, len(candidates))
+	unique := make([]uint, 0, len(candidates))
+	for _, id := range candidates {
+		if id == 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+
+	return primaryID, unique, nil
+}
 
 func CreateAppointment(c *gin.Context) {
 
@@ -30,20 +87,13 @@ func CreateAppointment(c *gin.Context) {
 	appointment.StudentName = user.Name
 	appointment.StudentEmail = user.Email
 
-	counsellorID, err := strconv.Atoi(c.PostForm("counsellorId"))
+	counsellorRawID := c.PostForm("counsellorId")
+	_, counsellorCandidates, err := resolveCounsellorIDs(counsellorRawID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid counsellor ID"})
 		return
 	}
-
-	// Check if this is a counsellor application ID, if so get the user_id
-	var counsellorApp models.CounsellorApplication
-	appErr := initializers.DB.Where("id = ?", counsellorID).First(&counsellorApp).Error
-	if appErr == nil {
-		appointment.CounsellorID = counsellorApp.UserId
-	} else {
-		appointment.CounsellorID = uint(counsellorID)
-	}
+	appointment.CounsellorID = counsellorCandidates[0]
 
 	appointment.Date = c.PostForm("date")
 	appointment.TimeSlot = c.PostForm("timeSlot")
@@ -110,25 +160,20 @@ func CreateAppointment(c *gin.Context) {
 	}
 
 	// 5. Validate Time Slot against counsellor availability for this date
-	// Frontend sends "hh:mm AM/PM" (e.g. "09:00 AM"), while availability stores "HH:MM" (24h).
-	slotTime, parseErr := time.Parse("03:04 PM", appointment.TimeSlot)
-	if parseErr != nil {
-		// Fallback if hour is not zero-padded (e.g. "9:00 AM")
-		slotTime, parseErr = time.Parse("3:04 PM", appointment.TimeSlot)
-	}
+	// Accept multiple input formats from clients and normalize consistently.
+	normalizedSlot, slotHHMM, parseErr := normalizeAppointmentTimeSlot(appointment.TimeSlot)
 	if parseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid time slot selected",
 		})
 		return
 	}
-
-	slotHHMM := slotTime.Format("15:04")
+	appointment.TimeSlot = normalizedSlot
 
 	var availableSlot models.CounsellorAvailability
 	err = initializers.DB.
-		Where("counsellor_id = ? AND date = ? AND start_time = ?",
-			appointment.CounsellorID, appointment.Date, slotHHMM,
+		Where("counsellor_id IN ? AND date = ? AND start_time IN ?",
+			counsellorCandidates, appointment.Date, []string{slotHHMM, slotHHMM + ":00"},
 		).
 		First(&availableSlot).Error
 	if err != nil {
@@ -137,13 +182,15 @@ func CreateAppointment(c *gin.Context) {
 		})
 		return
 	}
+	appointment.CounsellorID = availableSlot.CounsellorID
 
 	// 6. Check for existing booking
 	var existing models.Appointment
 
 	err = initializers.DB.
-		Where("counsellor_id = ? AND date = ? AND time_slot = ? AND status IN ?",
-			appointment.CounsellorID, appointment.Date, appointment.TimeSlot,
+		Where("counsellor_id = ? AND date = ? AND time_slot IN ? AND status IN ?",
+			availableSlot.CounsellorID, appointment.Date,
+			[]string{appointment.TimeSlot, strings.TrimLeft(appointment.TimeSlot, "0")},
 			[]string{"Pending", "Confirmed"}).
 		First(&existing).Error
 
@@ -165,6 +212,8 @@ func CreateAppointment(c *gin.Context) {
 		return
 	}
 
+	FulfillWaitlistForStudentOnBooking(user.ID, appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
+
 	// 9. Success Response
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Appointment booked successfully",
@@ -178,28 +227,17 @@ func GetBookedSlots(c *gin.Context) {
 	counsellorIdParam := c.Query("counsellorId")
 	date := c.Query("date")
 
-	// Convert string ID to uint
-	var counsellorId uint
-	parsedId, err := strconv.ParseUint(counsellorIdParam, 10, 32)
-	if err != nil {
-		// Check if this is a counsellor application ID, if so get the user_id
-		var counsellorApp models.CounsellorApplication
-		appErr := initializers.DB.Where("id = ?", counsellorIdParam).First(&counsellorApp).Error
-		if appErr == nil {
-			counsellorId = counsellorApp.UserId
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid counsellor ID"})
-			return
-		}
-	} else {
-		counsellorId = uint(parsedId)
+	_, counsellorCandidates, err := resolveCounsellorIDs(counsellorIdParam)
+	if err != nil || len(counsellorCandidates) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid counsellor ID"})
+		return
 	}
 
 	var appointments []models.Appointment
 
 	err = initializers.DB.
-		Where("counsellor_id = ? AND date = ? AND status IN ?",
-			counsellorId,
+		Where("counsellor_id IN ? AND date = ? AND status IN ?",
+			counsellorCandidates,
 			date,
 			[]string{"Pending", "Confirmed"}).
 		Find(&appointments).Error
@@ -223,8 +261,10 @@ func GetBookedSlots(c *gin.Context) {
 
 type counselorAppointmentRow struct {
 	models.Appointment
-	StudentName  string `json:"studentName" gorm:"column:student_name"`
-	StudentEmail string `json:"studentEmail" gorm:"column:student_email"`
+	StudentName    string `json:"studentName" gorm:"column:coalesced_student_name"`
+	StudentEmail   string `json:"studentEmail" gorm:"column:coalesced_student_email"`
+	AssignLocation string `json:"assignLocation" gorm:"column:assign_location"`
+	LocationNote   string `json:"locationNote" gorm:"column:location_note"`
 }
 
 type studentAppointmentRow struct {
@@ -251,10 +291,13 @@ func GetCounselorAppointments(c *gin.Context) {
 		Table("appointments").
 		Select(`
 			appointments.*,
-			COALESCE(NULLIF(users.name, ''), NULLIF(appointments.student_name, ''), 'Unknown Student') AS student_name,
-			COALESCE(NULLIF(users.email, ''), NULLIF(appointments.student_email, ''), 'No email available') AS student_email
+			COALESCE(NULLIF(users.name, ''), NULLIF(appointments.student_name, ''), 'Unknown Student') AS coalesced_student_name,
+			COALESCE(NULLIF(users.email, ''), NULLIF(appointments.student_email, ''), 'No email available') AS coalesced_student_email,
+			COALESCE(ca.workplace, '') AS assign_location,
+			COALESCE(ca.location_reason, '') AS location_note
 		`).
 		Joins("LEFT JOIN users ON users.id = appointments.student_id").
+		Joins(`LEFT JOIN counsellor_applications ca ON ca.user_id = appointments.counsellor_id AND ca.status = 'approved'`).
 		Where("appointments.counsellor_id = ? AND appointments.status <> ?", user.ID, "Deleted").
 		Order("appointments.date ASC, appointments.time_slot ASC").
 		Scan(&appointments).Error
@@ -397,6 +440,7 @@ func DeleteAppointmentForStudent(c *gin.Context) {
 			return
 		}
 
+		PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 		c.JSON(http.StatusOK, gin.H{"message": "Appointment deleted successfully", "status": appointment.Status})
 		return
 	}
@@ -461,6 +505,7 @@ func ApproveCancellationForCounselor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve cancellation"})
 		return
 	}
+	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
 	c.JSON(http.StatusOK, gin.H{"message": "Cancellation approved and slot released", "status": appointment.Status})
 }
 
@@ -505,6 +550,20 @@ func CancelAppointmentByCounselor(c *gin.Context) {
 	if err := initializers.DB.Save(&appointment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel appointment"})
 		return
+	}
+
+	PromoteNextWaitlistForSlot(appointment.CounsellorID, appointment.Date, appointment.TimeSlot)
+
+	// Send cancellation email to the student (non-blocking).
+	if err := email.SendAppointmentCancelledByCounselor(
+		appointment.StudentEmail,
+		appointment.StudentName,
+		user.Name,
+		appointment.Date,
+		appointment.TimeSlot,
+		appointment.CounselorCancelNote,
+	); err != nil {
+		log.Printf("appointment cancellation email failed: appointment=%d err=%v", appointment.ID, err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -569,6 +628,19 @@ func UpdateAppointmentStatusForCounselor(c *gin.Context) {
 	if err := initializers.DB.Save(&appointment).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update status"})
 		return
+	}
+
+	// When counselor confirms, notify the student via email (non-blocking).
+	if nextStatus == "Confirmed" {
+		if err := email.SendAppointmentConfirmed(
+			appointment.StudentEmail,
+			appointment.StudentName,
+			user.Name,
+			appointment.Date,
+			appointment.TimeSlot,
+		); err != nil {
+			log.Printf("appointment confirmation email failed: appointment=%d err=%v", appointment.ID, err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

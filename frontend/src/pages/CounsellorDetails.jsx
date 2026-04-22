@@ -1,11 +1,13 @@
-import { useParams, Link } from "react-router-dom";
-import { FaArrowLeft, FaBriefcase, FaGraduationCap, FaEnvelope, FaMapMarkerAlt, FaStar, FaAward, FaUserCheck, FaClock } from "react-icons/fa";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { FaArrowLeft, FaBriefcase, FaGraduationCap, FaEnvelope, FaMapMarkerAlt, FaStar, FaAward, FaUserCheck, FaClock, FaTimes, FaCalendarCheck } from "react-icons/fa";
 import { useState, useEffect } from "react";
 
 export default function CounsellorDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [counsellor, setCounsellor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [bookModalOpen, setBookModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchCounsellor = async () => {
@@ -48,7 +50,7 @@ export default function CounsellorDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex justify-center items-center">
+      <div className="min-h-screen bg-[#FAF3E0] flex justify-center items-center">
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
       </div>
     );
@@ -56,7 +58,7 @@ export default function CounsellorDetails() {
 
   if (!counsellor) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center text-center px-4">
+      <div className="min-h-screen flex flex-col justify-center items-center bg-linear-to-b from-[#fdf7ea] via-[#f9f0dd] to-[#f5ead3] px-4 text-center">
         <h2 className="text-2xl font-black text-slate-900 mb-2">Counsellor Not Found</h2>
         <p className="text-slate-500 mb-6 font-medium">The specialist you are looking for does not exist or has been removed.</p>
         <Link to="/counsellors" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Back to Directory</Link>
@@ -65,7 +67,7 @@ export default function CounsellorDetails() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
+    <main className="min-h-screen bg-linear-to-b from-[#fdf7ea] via-[#f9f0dd] to-[#f5ead3] pb-16">
       {/* HEADER SECTION - PREMIUM GRADIENT */}
       <div className="bg-linear-to-br from-blue-700 via-blue-600 to-indigo-700 pt-8 pb-24 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
@@ -195,7 +197,7 @@ export default function CounsellorDetails() {
                 <div className="flex items-center gap-3 text-slate-300 bg-white/5 p-3.5 rounded-xl border border-white/5">
                   <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-blue-400">
                     <FaClock className="text-sm" />
-                  </div>8080
+                  </div>
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Wait Time</p>
                     <p className="text-xs font-bold">Less than 24h</p>
@@ -203,13 +205,13 @@ export default function CounsellorDetails() {
                 </div>
               </div>
 
-              {/* ALWAYS enabled booking button */}
-              <Link
-                to={`/book-appointment/${id}`}
-                className="block w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-center text-sm uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] mb-4"
+              <button
+                type="button"
+                onClick={() => setBookModalOpen(true)}
+                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] mb-4"
               >
                 Book Appointment
-              </Link>
+              </button>
 
               <button className="w-full py-3 bg-white/5 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all border border-white/10">
                 Contact Office
@@ -223,6 +225,85 @@ export default function CounsellorDetails() {
 
         </div>
       </div>
+
+      {bookModalOpen && (
+        <div
+          className="fixed inset-0 z-200 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="book-modal-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            aria-label="Close dialog"
+            onClick={() => setBookModalOpen(false)}
+          />
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-fadeIn">
+            <div className="flex items-start justify-between gap-4 p-6 pb-4 border-b border-slate-100 bg-linear-to-r from-blue-600 to-indigo-600 text-white">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <FaCalendarCheck className="text-xl" />
+                </div>
+                <div>
+                  <h2 id="book-modal-title" className="text-lg font-black tracking-tight">
+                    How to book an appointment
+                  </h2>
+                  <p className="text-blue-100 text-xs font-medium mt-1 leading-relaxed">
+                    Follow these steps before you continue to the booking page.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBookModalOpen(false)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <FaTimes className="text-lg" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <ol className="space-y-4 text-sm text-slate-600 font-medium leading-relaxed list-decimal list-inside marker:font-black marker:text-blue-600">
+                <li>
+                  <span className="font-bold text-slate-800">Use Services in the menu.</span>{" "}
+                  Open <strong className="text-slate-900">Services</strong> in the top navigation, then choose{" "}
+                  <strong className="text-slate-900">Counselling Booking</strong> anytime you want to start from the main booking entry.
+                </li>
+                <li>
+                  <span className="font-bold text-slate-800">Share how you feel.</span>{" "}
+                  On the booking flow you will describe your <strong className="text-slate-900">mood, feelings, and current condition</strong> so we can match support to what you need.
+                </li>
+                <li>
+                  <span className="font-bold text-slate-800">Confirm your session.</span>{" "}
+                  Select a counsellor (you can keep <strong className="text-slate-900">{counsellor.name}</strong>), pick a time, and complete your appointment.
+                </li>
+              </ol>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBookModalOpen(false);
+                    navigate(`/book-appointment/${id}`);
+                  }}
+                  className="flex-1 py-3.5 px-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98]"
+                >
+                  Go to book appointment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookModalOpen(false)}
+                  className="py-3.5 px-4 rounded-2xl font-bold text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -9,8 +9,6 @@ import {
   FaEye,
   FaArrowLeft,
   FaExclamationCircle,
-  FaLock,
-  FaEyeSlash,
 } from "react-icons/fa";
 
 const API_BASE_URL = "http://localhost:3000";
@@ -24,11 +22,29 @@ const treatmentIdeas = [
   "Custom / Other",
 ];
 
+function formatPlanTimestamp(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 function normalizeCounselorAppointment(row) {
   const id = row.id ?? row.ID;
+  const rawSid = row.studentId ?? row.student_id ?? row.StudentID;
+  const studentId =
+    rawSid != null && rawSid !== "" ? Number(rawSid) : NaN;
   return {
     id,
-    studentId: row.studentId ?? row.student_id,
+    studentId: Number.isFinite(studentId) ? studentId : undefined,
     studentName: row.studentName || row.student_name || "Unknown student",
     date: row.date || "",
     timeSlot: row.timeSlot || row.time_slot || "",
@@ -47,10 +63,12 @@ export default function ManagePlansTab() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [expandedStepId, setExpandedStepId] = useState(null);
 
 const fetchPlans = () => {
-  fetch(`${API_BASE_URL}/api/treatment-plans`)
+  const u = JSON.parse(localStorage.getItem("user") || "null");
+  fetch(`${API_BASE_URL}/api/treatment-plans`, {
+    headers: u?.token ? { Authorization: `Bearer ${u.token}` } : {},
+  })
     .then(async (res) => {
       const data = await res.json();
       if (!res.ok) {
@@ -60,23 +78,35 @@ const fetchPlans = () => {
       }
       const list = Array.isArray(data) ? data : [];
       setPlans(
-        list.map((plan) => ({
-          id: plan.id,
-          appointmentId: plan.appointment_id,
-          student: plan.student_name || "Student ID: " + plan.student_id,
-          caseId: "CASE-" + plan.id,
-          status: plan.status === "pending" ? "Pending" : plan.status,
-          progress: plan.status === "Completed" ? 100 : 50,
-          treatmentIdea: plan.description,
-          primaryObjective: plan.title,
-          lastUpdated: "Just now",
-          counsellorName: plan.counsellor_name || "Counsellor",
-          recommendations: {
-            dailyRoutine: "Follow routine",
-            readingMaterials: "Provided",
-            exercisePlan: "Breathing exercise",
-          },
-        }))
+        list.map((plan) => {
+          const pct =
+            typeof plan.progress_percent === "number"
+              ? plan.progress_percent
+              : Number(plan.progress_percent);
+          const progress = Number.isFinite(pct)
+            ? Math.min(100, Math.max(0, pct))
+            : (plan.status || "").toLowerCase() === "completed"
+              ? 100
+              : 0;
+          const st = plan.status === "pending" ? "Pending" : plan.status;
+          return {
+            id: plan.id,
+            appointmentId: plan.appointment_id,
+            student: plan.student_name || `Student #${plan.student_id}`,
+            caseId: `CASE-${plan.id}`,
+            status: st,
+            progress,
+            treatmentIdea: plan.description || "",
+            primaryObjective: plan.title || "",
+            lastUpdated: formatPlanTimestamp(plan.updated_at),
+            counsellorName: plan.counsellor_name || "Counsellor",
+            recommendations: {
+              dailyRoutine: plan.daily_routine || "",
+              readingMaterials: plan.reading_materials || "",
+              exercisePlan: plan.exercise_plan || "",
+            },
+          };
+        })
       );
     })
     .catch((err) => {
@@ -229,14 +259,31 @@ useEffect(() => {
       return;
     }
 
+    const resolvedStudentId = Number(selectedAppointment.studentId);
+    if (!Number.isFinite(resolvedStudentId) || resolvedStudentId <= 0) {
+      alert(
+        "Could not resolve the student for this appointment. Refresh the page and try again."
+      );
+      return;
+    }
+
+    const progressPercent = Math.min(
+      100,
+      Math.max(0, parseInt(formData.progress, 10) || 0)
+    );
+
  if (isEditing) {
   const updatedPlan = {
     appointment_id: selectedAppointment.id,
     counsellor_id: counsellorId,
-    student_id: selectedAppointment.studentId,
+    student_id: resolvedStudentId,
     title: formData.primaryObjective,
     description: formData.treatmentIdea,
     status: formData.status,
+    daily_routine: formData.recommendations.dailyRoutine,
+    reading_materials: formData.recommendations.readingMaterials,
+    exercise_plan: formData.recommendations.exercisePlan,
+    progress_percent: progressPercent,
   };
 
   fetch(`${API_BASE_URL}/api/treatment-plans/${editingPlanId}`, {
@@ -268,10 +315,14 @@ useEffect(() => {
   const newPlan = {
     appointment_id: selectedAppointment.id,
     counsellor_id: counsellorId,
-    student_id: selectedAppointment.studentId,
+    student_id: resolvedStudentId,
     title: formData.primaryObjective,
     description: formData.treatmentIdea,
     status: formData.status,
+    daily_routine: formData.recommendations.dailyRoutine,
+    reading_materials: formData.recommendations.readingMaterials,
+    exercise_plan: formData.recommendations.exercisePlan,
+    progress_percent: progressPercent,
   };
 
   fetch(`${API_BASE_URL}/api/treatment-plans`, {
@@ -318,6 +369,7 @@ useEffect(() => {
 
   fetch(`${API_BASE_URL}/api/treatment-plans/${planId}`, {
     method: "DELETE",
+    headers: user?.token ? { Authorization: `Bearer ${user.token}` } : {},
   })
     .then((res) => res.json())
     .then(() => {
@@ -334,7 +386,6 @@ useEffect(() => {
     setSelectedPlan(plan);
     setIsCreating(false);
     setIsEditing(false);
-    setExpandedStepId(null);
   };
 
   const getStatusIcon = (status) => {
@@ -351,118 +402,6 @@ useEffect(() => {
         return <FaCheckCircle />;
     }
   };
-
-  const getStudentSteps = (plan) => {
-    if (!plan) return [];
-
-    const baseCompleted = plan.progress >= 25;
-    const secondCompleted = plan.progress >= 50;
-    const thirdCompleted = plan.progress >= 75;
-    const fourthCompleted = plan.progress >= 100;
-
-    if (plan.treatmentIdea === "Exam Anxiety Management Plan") {
-      return [
-        {
-          id: 1,
-          title: "Follow Structured Study Schedule",
-          date: "Feb 10, 2026",
-          completed: baseCompleted,
-          notes:
-            "Follow the study timetable prepared by the counselor with realistic daily targets and short breaks.",
-        },
-        {
-          id: 2,
-          title: "Practice Daily Anxiety Reduction Exercise",
-          date: "Feb 17, 2026",
-          completed: secondCompleted,
-          notes:
-            "Complete 10 minutes of breathing and grounding exercises before each study session.",
-        },
-        {
-          id: 3,
-          title: "Submit Weekly Stress Reflection",
-          date: "Feb 24, 2026",
-          completed: thirdCompleted,
-          notes:
-            "Write a short reflection about exam fear, concentration level, and emotional changes.",
-        },
-        {
-          id: 4,
-          title: "Attend Follow-Up Progress Review",
-          date: "Mar 03, 2026",
-          completed: fourthCompleted,
-          notes:
-            "Attend the next counseling review and discuss improvements and remaining difficulties.",
-        },
-      ];
-    }
-
-    if (plan.treatmentIdea === "Stress Reduction & Breathing Routine") {
-      return [
-        {
-          id: 1,
-          title: "Morning Breathing Practice",
-          date: "Feb 10, 2026",
-          completed: baseCompleted,
-          notes: "Practice guided breathing each morning for at least 10 minutes.",
-        },
-        {
-          id: 2,
-          title: "Stress Trigger Journal",
-          date: "Feb 17, 2026",
-          completed: secondCompleted,
-          notes: "Write down daily stress triggers and coping responses.",
-        },
-        {
-          id: 3,
-          title: "Weekly Relaxation Review",
-          date: "Feb 24, 2026",
-          completed: thirdCompleted,
-          notes: "Review what activities help reduce stress most effectively.",
-        },
-        {
-          id: 4,
-          title: "Counselor Follow-Up Session",
-          date: "Mar 03, 2026",
-          completed: fourthCompleted,
-          notes: "Meet the counselor and review stress management progress.",
-        },
-      ];
-    }
-
-    return [
-      {
-        id: 1,
-        title: "Daily Routine Adjustment",
-        date: "Feb 10, 2026",
-        completed: baseCompleted,
-        notes: plan.recommendations.dailyRoutine,
-      },
-      {
-        id: 2,
-        title: "Reading / Reflection Task",
-        date: "Feb 17, 2026",
-        completed: secondCompleted,
-        notes: plan.recommendations.readingMaterials,
-      },
-      {
-        id: 3,
-        title: "Exercise and Coping Practice",
-        date: "Feb 24, 2026",
-        completed: thirdCompleted,
-        notes: plan.recommendations.exercisePlan,
-      },
-      {
-        id: 4,
-        title: "Follow-Up Review Session",
-        date: "Mar 03, 2026",
-        completed: fourthCompleted,
-        notes: "Attend review session and discuss plan outcomes with the counselor.",
-      },
-    ];
-  };
-
-  const detailSteps = getStudentSteps(selectedPlan);
 
   return (
     <div className="space-y-10 animate-fadeIn">
@@ -823,132 +762,93 @@ useEffect(() => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black tracking-tight flex items-center gap-3 text-slate-900">
-                    <FaCheckCircle className="text-blue-600" /> Treatment Steps
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              <div className="space-y-6 lg:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-3 text-lg font-black tracking-tight text-slate-900">
+                    <FaCheckCircle className="text-blue-600" /> Published plan
                   </h3>
-
-                  <div className="text-sm font-bold text-slate-600">
-                    Progress: {selectedPlan.progress}%
-                  </div>
+                  <span
+                    className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-[9px] font-black uppercase ${selectedPlan.status === "Active"
+                        ? "bg-green-50 text-green-600"
+                        : selectedPlan.status === "Completed"
+                          ? "bg-blue-50 text-blue-600"
+                          : "bg-orange-50 text-orange-600"
+                      }`}
+                  >
+                    {getStatusIcon(selectedPlan.status)} {selectedPlan.status}
+                  </span>
                 </div>
 
-                <div className="space-y-5">
-                  {detailSteps.map((step, index) => {
-                    const isLocked =
-                      index > 0 && !detailSteps[index - 1].completed && !step.completed;
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Primary objective
+                  </p>
+                  <p className="text-sm font-bold text-slate-800">
+                    {selectedPlan.primaryObjective || "—"}
+                  </p>
+                </div>
 
-                    return (
-                      <div
-                        key={step.id}
-                        className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-4 flex-1">
-                            <input
-                              type="checkbox"
-                              checked={step.completed}
-                              readOnly
-                              className="mt-1 w-5 h-5 accent-blue-600 cursor-default"
-                            />
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Treatment focus (description)
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                    {selectedPlan.treatmentIdea?.trim() || "—"}
+                  </p>
+                </div>
 
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <h4 className="font-black text-slate-800 text-base">
-                                  Step {step.id} | {step.date}
-                                </h4>
-
-                                {step.completed ? (
-                                  <span className="text-xs font-black px-3 py-1 rounded-lg bg-green-100 text-green-700">
-                                    Completed
-                                  </span>
-                                ) : isLocked ? (
-                                  <span className="text-xs font-black px-3 py-1 rounded-lg bg-amber-50 text-amber-700 flex items-center gap-2">
-                                    <FaLock /> Locked
-                                  </span>
-                                ) : (
-                                  <span className="text-xs font-black px-3 py-1 rounded-lg bg-blue-50 text-blue-700">
-                                    Current Step
-                                  </span>
-                                )}
-                              </div>
-
-                              <p className="mt-3 text-slate-600 font-medium">{step.title}</p>
-
-                              <div
-                                className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedStepId === step.id
-                                    ? "max-h-40 opacity-100 mt-4"
-                                    : "max-h-0 opacity-0"
-                                  }`}
-                              >
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                  <p className="text-sm text-slate-600 leading-relaxed">
-                                    {step.notes}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() =>
-                              setExpandedStepId(expandedStepId === step.id ? null : step.id)
-                            }
-                            className="text-slate-400 hover:text-blue-500 transition-colors p-2"
-                            title={expandedStepId === step.id ? "Hide Details" : "View Details"}
-                          >
-                            {expandedStepId === step.id ? (
-                              <FaEyeSlash size={16} />
-                            ) : (
-                              <FaEye size={16} />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      Progress
+                    </span>
+                    <span className="text-sm font-black text-slate-900">
+                      {selectedPlan.progress}%
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full bg-blue-600 transition-all"
+                      style={{ width: `${Math.min(100, Math.max(0, selectedPlan.progress))}%` }}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-xl">
-                <h3 className="text-xl font-black mb-8 flex items-center gap-3">
+              <div className="rounded-[2.5rem] bg-slate-900 p-8 text-white shadow-xl">
+                <h3 className="mb-6 flex items-center gap-3 text-xl font-black">
                   <FaExclamationCircle className="text-blue-400" /> Recommendations
                 </h3>
 
-                <div className="space-y-6">
-                  <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-                    <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">
-                      Daily Routine
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-blue-400">
+                      Daily routine
                     </p>
-                    <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                      {selectedPlan.recommendations.dailyRoutine}
-                    </p>
-                  </div>
-
-                  <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-                    <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">
-                      Reading Materials
-                    </p>
-                    <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                      {selectedPlan.recommendations.readingMaterials}
+                    <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-300">
+                      {selectedPlan.recommendations.dailyRoutine?.trim() || "—"}
                     </p>
                   </div>
 
-                  <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-                    <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">
-                      Exercise Plan
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-blue-400">
+                      Reading materials
                     </p>
-                    <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                      {selectedPlan.recommendations.exercisePlan}
+                    <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-300">
+                      {selectedPlan.recommendations.readingMaterials?.trim() || "—"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-blue-400">
+                      Exercise plan
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-300">
+                      {selectedPlan.recommendations.exercisePlan?.trim() || "—"}
                     </p>
                   </div>
                 </div>
-
-                <button className="w-full mt-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-blue-900/50">
-                  Download Plan PDF
-                </button>
               </div>
             </div>
           </div>
