@@ -26,15 +26,20 @@ export default function QRScannerPage() {
           console.log("SENDING ID:", data.id);
 
           // ✅ Call backend (FIXED URL)
-          const res = await fetch("http://localhost:3000/api/events/scan", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              registration_id: data.id,
-            }),
-          });
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("http://localhost:3000/api/events/scan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,   // ✅ IMPORTANT
+          },
+          body: JSON.stringify({
+            id: data.id,
+            event_id: data.event_id,
+            user_id: data.user_id,
+          }),
+        });
 
           // ✅ Handle non-JSON errors safely
           if (!res.ok) {

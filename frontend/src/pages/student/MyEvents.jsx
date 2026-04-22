@@ -315,13 +315,22 @@ export default function MyEvents() {
                           className="w-40 mx-auto mt-3 border rounded shadow"
                         />
 
-                        <a
-                          href={e.qr}
-                          download
-                          className="block mt-2 text-blue-500 underline"
-                        >
-                          Download QR
-                        </a>
+                        <button
+                            onClick={() => {
+                              const link = document.createElement("a");
+                              link.href = e.qr;
+                              link.download = `event_qr_${e.id}.png`;
+                              link.target = "_blank"; // 🔥 important
+
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="block mt-2 text-blue-500 underline"
+                          >
+                            Download QR
+                          </button>
+                        
                       </>
                     )}
                   </div>
