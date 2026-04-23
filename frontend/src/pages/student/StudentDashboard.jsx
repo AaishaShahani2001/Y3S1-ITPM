@@ -9,6 +9,7 @@ import {
   FaUserCircle,
 } from "react-icons/fa";
 import { FiMenu, FiX } from "react-icons/fi";
+import { useLocation } from "react-router-dom";
 
 const API_BASE = "http://localhost:3000";
 
@@ -18,6 +19,7 @@ import MyWaitListTab from "../../components/student/MyWaitListTab";
 import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 import MyReportView from "../../components/student/MyReportView";
 import OverviewTab from "../../components/student/OverviewTab";
+import MoodTracker from "../../components/student/MoodTracker";
 import logo from "../../assets/Logo.png";
 
 const TABS = [
@@ -27,20 +29,24 @@ const TABS = [
   { id: "treatment", label: "Treatment Plan", icon: <FaCalendarCheck /> },
   { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
   { id: "events", label: "My Events", icon: <FaCalendarCheck /> },
+  { id: "mood-tracker", label: "Mood Tracker", icon: <FaCalendarCheck /> },
 ];
 
 export default function StudentDashboard() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(null);
   const [reportUnlocked, setReportUnlocked] = useState(false);
+  const [reportPlanId, setReportPlanId] = useState(null);
   const [headerProfile, setHeaderProfile] = useState({
     displayName: "",
     subtitle: "Student",
   });
 
-  const handleViewReport = () => {
-    setReportUnlocked(true);
+ const handleViewReport = (planId) => {
+    setReportPlanId(planId ?? null);
+    setReportUnlocked(!!planId);
     setActiveTab("reports");
   };
 
@@ -92,6 +98,13 @@ export default function StudentDashboard() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab && TABS.some((t) => t.id === tab)) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -200,10 +213,14 @@ export default function StudentDashboard() {
             <TreatmentPlanTab onViewReport={handleViewReport} />
           )}
           {activeTab === "reports" && (
-            <MyReportView reportUnlocked={reportUnlocked} />
+            <MyReportView reportUnlocked={reportUnlocked} 
+            reportPlanId={reportPlanId}
+            
+            />
           )}
 
           {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "mood-tracker" && <MoodTracker />}
 
         </div>
       </main>

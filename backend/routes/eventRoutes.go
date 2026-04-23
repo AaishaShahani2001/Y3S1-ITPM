@@ -9,15 +9,17 @@ import (
 
 func EventRoutes(r *gin.Engine) {
 
-	// 🔥 PROTECTED ROUTES (JWT REQUIRED)
+	// PROTECTED ROUTES (JWT REQUIRED)
 	auth := r.Group("/api")
 	auth.Use(middleware.RequireAuth)
 
 	auth.POST("/events/register", controllers.RegisterEvent)
 	auth.GET("/student/events", controllers.GetStudentEvents)
 	auth.DELETE("/registration/:id", controllers.DeleteRegistration)
+	
+	
 
-	// 🔥 PUBLIC ROUTES
+	// PUBLIC ROUTES
 	r.GET("/api/events/registrations", controllers.GetRegistrations)
 	r.POST("/api/events", controllers.CreateEvent)
 	r.GET("/api/events", controllers.GetEvents)
@@ -26,4 +28,5 @@ func EventRoutes(r *gin.Engine) {
 	r.GET("/api/events/:id", controllers.GetEventByID)
 	r.GET("/api/events/:id/registrations", controllers.GetRegistrationsByEvent)
 	r.GET("/api/events/:id/analytics", controllers.GetEventAnalytics)
+	r.POST("/api/events/scan", controllers.ScanQR)
 }

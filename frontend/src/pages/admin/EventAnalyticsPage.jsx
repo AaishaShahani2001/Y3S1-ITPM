@@ -13,7 +13,6 @@ export default function EventAnalyticsPage() {
   const [event, setEvent] = useState(null);
   const [registrations, setRegistrations] = useState([]);
 
-  // 📊 Chart refs
   const genderRef = useRef();
   const totalRef = useRef();
   const facultyRef = useRef();
@@ -26,28 +25,33 @@ export default function EventAnalyticsPage() {
 
     fetch(`http://localhost:3000/api/events/${id}/registrations`)
       .then(res => res.json())
-      .then(setRegistrations);
+      .then(data => {
+        console.log("REG DATA:", data); // 🔥 debug
+        setRegistrations(data || []);
+      });
   }, [id]);
 
   if (!event) return <div className="p-10">Loading...</div>;
 
-  //DATA PROCESSING
-  const confirmedRegs = registrations.filter(r => r.Status !== "waitlist");
-  const male = confirmedRegs.filter(r => r.Gender === "Male").length;
-  const female = confirmedRegs.filter(r => r.Gender === "Female").length;
+  // ✅ FIXED FILTERS (lowercase)
+  const confirmedRegs = registrations.filter(r => r.status !== "waitlist");
+  const waitlistRegs = registrations.filter(r => r.status === "waitlist");
+  const attendedRegs = registrations.filter(r => r.attended === true);
 
+  const male = confirmedRegs.filter(r => r.gender === "Male").length;
+  const female = confirmedRegs.filter(r => r.gender === "Female").length;
 
   const facultyMap = {};
   confirmedRegs.forEach(r => {
-    facultyMap[r.Faculty] = (facultyMap[r.Faculty] || 0) + 1;
+    facultyMap[r.faculty] = (facultyMap[r.faculty] || 0) + 1;
   });
 
   const uniMap = {};
   confirmedRegs.forEach(r => {
-    uniMap[r.University] = (uniMap[r.University] || 0) + 1;
+    uniMap[r.university] = (uniMap[r.university] || 0) + 1;
   });
 
-  // 📊 CHART DATA
+  // 📊 CHARTS
   const pieData = {
     labels: ["Male", "Female"],
     datasets: [{
@@ -83,38 +87,30 @@ export default function EventAnalyticsPage() {
     }]
   };
 
-  // 📄 PDF FUNCTION (WITH CHARTS)
+  // 📄 PDF
   const downloadPDF = async () => {
     const doc = new jsPDF();
 
-    // TITLE
     doc.setFontSize(16);
     doc.text(`${event.Title} Analytics Report`, 14, 20);
 
-    // STATS
     doc.setFontSize(12);
     doc.text(`Total: ${registrations.length}`, 14, 30);
     doc.text(`Capacity: ${event.Capacity}`, 14, 38);
     doc.text(`Remaining: ${event.Capacity - registrations.length}`, 14, 46);
 
-    // 📊 CAPTURE CHARTS
     const genderCanvas = await html2canvas(genderRef.current);
     const totalCanvas = await html2canvas(totalRef.current);
 
-    const genderImg = genderCanvas.toDataURL("image/png");
-    const totalImg = totalCanvas.toDataURL("image/png");
+    doc.addImage(genderCanvas.toDataURL("image/png"), "PNG", 10, 55, 90, 70);
+    doc.addImage(totalCanvas.toDataURL("image/png"), "PNG", 110, 55, 90, 70);
 
-    // ADD CHARTS
-    doc.addImage(genderImg, "PNG", 10, 55, 90, 70);
-    doc.addImage(totalImg, "PNG", 110, 55, 90, 70);
-
-    // 📋 TABLE
     const tableData = registrations.map(r => [
-      r.Name,
-      r.Email,
-      r.University,
-      r.Faculty,
-      r.Gender
+      r.name,
+      r.email,
+      r.university,
+      r.faculty,
+      r.gender
     ]);
 
     autoTable(doc, {
@@ -129,152 +125,132 @@ export default function EventAnalyticsPage() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
 
-      {/*HEADER */}
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-        <motion.h2 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-2xl font-bold"
-        >
+        <motion.h2 className="text-2xl font-bold">
           📊 {event.Title} Analytics
         </motion.h2>
 
         <button
           onClick={downloadPDF}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
         >
           📄 Download PDF
         </button>
       </div>
 
-      {/*STATS */}
+      {/* STATS */}
       <div className="grid md:grid-cols-3 gap-4 mb-6">
-        {[ 
-          { label: "Total", value: confirmedRegs.length },
-          { label: "Capacity", value: event.Capacity },
-          { label: "Remaining", value: event.Capacity - confirmedRegs.length }
-        ].map((item, i) => (
-          <motion.div
-            key={i}
-            whileHover={{ scale: 1.05 }}
-            className="bg-white p-5 rounded-2xl shadow-lg"
-          >
-            <p className="text-gray-500">{item.label}</p>
-            <h3 className="text-xl font-bold">{item.value}</h3>
-          </motion.div>
-        ))}
+        <div className="bg-white p-5 rounded shadow">
+          <p>Total</p>
+          <h3 className="text-xl font-bold">{confirmedRegs.length}</h3>
+        </div>
+
+        <div className="bg-white p-5 rounded shadow">
+          <p>Capacity</p>
+          <h3 className="text-xl font-bold">{event.Capacity}</h3>
+        </div>
+
+        <div className="bg-white p-5 rounded shadow">
+          <p>Remaining</p>
+          <h3 className="text-xl font-bold">
+            {event.Capacity - confirmedRegs.length}
+          </h3>
+        </div>
       </div>
 
-      {/*CHARTS */}
+      {/* CHARTS */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
 
-        <div ref={genderRef} className="bg-white p-4 rounded-2xl shadow">
-          <h3 className="mb-3 font-semibold">Gender Distribution</h3>
+        <div ref={genderRef} className="bg-white p-4 rounded shadow">
+          <h3>Gender Distribution</h3>
           <Pie data={pieData} />
         </div>
 
-        <div ref={totalRef} className="bg-white p-4 rounded-2xl shadow">
-          <h3 className="mb-3 font-semibold">Total Registrations</h3>
+        <div ref={totalRef} className="bg-white p-4 rounded shadow">
+          <h3>Total Registrations</h3>
           <Bar data={totalData} />
         </div>
 
-        <div ref={facultyRef} className="bg-white p-4 rounded-2xl shadow">
-          <h3 className="mb-3 font-semibold">Faculty Distribution</h3>
+        <div ref={facultyRef} className="bg-white p-4 rounded shadow">
+          <h3>Faculty Distribution</h3>
           <Bar data={facultyData} />
         </div>
 
-        <div ref={uniRef} className="bg-white p-4 rounded-2xl shadow">
-          <h3 className="mb-3 font-semibold">University Distribution</h3>
+        <div ref={uniRef} className="bg-white p-4 rounded shadow">
+          <h3>University Distribution</h3>
           <Bar data={universityData} />
         </div>
-
       </div>
 
-      {/*REGISTERED STUDENTS */}
-<div className="bg-white rounded-xl shadow overflow-hidden mb-6">
-  <h3 className="p-4 font-semibold border-b">Registered Students</h3>
+      {/* REGISTERED */}
+      <div className="bg-white rounded shadow mb-6">
+        <h3 className="p-4 font-semibold border-b">Registered Students</h3>
 
-  <table className="w-full text-sm">
-    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-      <tr>
-        <th className="p-3 text-left">Name</th>
-        <th className="p-3 text-left">Email</th>
-        <th className="p-3 text-left">University</th>
-        <th className="p-3 text-left">Faculty</th>
-        <th className="p-3 text-left">Gender</th>
-        <th className="p-3 text-left">Status</th>
-      </tr>
-    </thead>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3">Name</th>
+              <th>Email</th>
+              <th>University</th>
+              <th>Faculty</th>
+              <th>Gender</th>
+            </tr>
+          </thead>
 
-    <tbody>
-      {registrations
-        .filter(r => r.Status !== "waitlist")
-        .map((r) => (
-          <tr key={r.ID} className="border-t hover:bg-gray-50">
-
-            <td className="p-3 font-medium">{r.Name}</td>
-            <td className="p-3 text-gray-600">{r.Email}</td>
-            <td className="p-3">{r.University}</td>
-            <td className="p-3">{r.Faculty}</td>
-            <td className="p-3">{r.Gender}</td>
-
-            <td className="p-3">
-              <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-600">
-                Confirmed
-              </span>
-            </td>
-
-          </tr>
-        ))}
-    </tbody>
-  </table>
-</div>
-
-
-    {/*WAITLIST STUDENTS */}
-    <div className="bg-white rounded-xl shadow overflow-hidden">
-      <h3 className="p-4 font-semibold border-b">Waitlist Students</h3>
-
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-          <tr>
-            <th className="p-3 text-left">#</th>
-            <th className="p-3 text-left">Name</th>
-            <th className="p-3 text-left">Email</th>
-            <th className="p-3 text-left">University</th>
-            <th className="p-3 text-left">Faculty</th>
-            <th className="p-3 text-left">Gender</th>
-            <th className="p-3 text-left">Status</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {registrations
-            .filter(r => r.Status === "waitlist")
-            .map((r, index) => (
-              <tr key={r.ID} className="border-t hover:bg-gray-50">
-
-                <td className="p-3 font-semibold text-gray-500">
-                  {index + 1}
-                </td>
-
-                <td className="p-3 font-medium">{r.Name}</td>
-                <td className="p-3 text-gray-600">{r.Email}</td>
-                <td className="p-3">{r.University}</td>
-                <td className="p-3">{r.Faculty}</td>
-                <td className="p-3">{r.Gender}</td>
-
-                <td className="p-3">
-                  <span className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-600">
-                    Waitlist
-                  </span>
-                </td>
-
+          <tbody>
+            {confirmedRegs.map(r => (
+              <tr key={r.id} className="border-t">
+                <td className="p-3">{r.name}</td>
+                <td>{r.email}</td>
+                <td>{r.university}</td>
+                <td>{r.faculty}</td>
+                <td>{r.gender}</td>
               </tr>
             ))}
-        </tbody>
-      </table>
-    </div>
+          </tbody>
+        </table>
+      </div>
+
+      {/* WAITLIST */}
+      <div className="bg-white rounded shadow mb-6">
+        <h3 className="p-4 font-semibold border-b">Waitlist Students</h3>
+
+        <table className="w-full text-sm">
+          <tbody>
+            {waitlistRegs.map((r, i) => (
+              <tr key={i} className="border-t">
+                <td className="p-3">{r.name}</td>
+                <td>{r.email}</td>
+                <td>{r.university}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ATTENDED */}
+      <div className="bg-white rounded shadow">
+        <h3 className="p-4 font-semibold border-b">Attended Students</h3>
+
+        <table className="w-full text-sm">
+          <tbody>
+            {attendedRegs.length === 0 ? (
+              <tr>
+                <td className="p-4 text-center">No attendees yet</td>
+              </tr>
+            ) : (
+              attendedRegs.map((r, i) => (
+                <tr key={i} className="border-t">
+                  <td className="p-3">{r.name}</td>
+                  <td>{r.email}</td>
+                  <td>{r.university}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
     </div>
   );

@@ -34,13 +34,13 @@ func RegisterEvent(c *gin.Context) {
 
 	var input RegisterInput
 
-	// 🔥 VALIDATE INPUT
+	// VALIDATE INPUT
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 🔥 GET USER ID FROM TOKEN
+	// GET USER ID FROM TOKEN
 	userIDValue, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -61,7 +61,7 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// 🔥 CHECK DUPLICATE REGISTRATION
+	// CHECK DUPLICATE REGISTRATION
 	var existing models.Registration
 	err := initializers.DB.
 		Where("user_id = ? AND event_id = ?", userID, input.EventID).
@@ -74,27 +74,27 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// 🔥 GET EVENT (SAFE)
+	// GET EVENT (SAFE)
 	var event models.Event
 	if err := initializers.DB.First(&event, input.EventID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
 		return
 	}
 
-	// 🔥 COUNT CONFIRMED ONLY
+	// COUNT CONFIRMED ONLY
 	var confirmedCount int64
 	initializers.DB.
 		Model(&models.Registration{}).
 		Where("event_id = ? AND status = ?", input.EventID, "confirmed").
 		Count(&confirmedCount)
 
-	// 🔥 DECIDE STATUS
+	// DECIDE STATUS
 	status := "confirmed"
 	if int(confirmedCount) >= event.Capacity {
 		status = "waitlist"
 	}
 
-	// 🔥 CREATE REGISTRATION
+	// CREATE REGISTRATION
 	reg := models.Registration{
 		UserID:     userID,
 		EventID:    uint(input.EventID),
@@ -111,7 +111,7 @@ func RegisterEvent(c *gin.Context) {
 
 	result := initializers.DB.Create(&reg)
 
-	// 🔥 CHECK DB ERROR FIRST
+	// CHECK DB ERROR FIRST
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Registration failed",
@@ -119,7 +119,7 @@ func RegisterEvent(c *gin.Context) {
 		return
 	}
 
-	// 🔥 GENERATE QR
+	// GENERATE QR
 	qrBase64 := ""
 	qrURL := ""
 
@@ -141,7 +141,7 @@ func RegisterEvent(c *gin.Context) {
 		}
 	}
 
-	// 🔥 SEND EMAIL
+	// SEND EMAIL
 	go email.SendEventRegistrationEmail(
 		reg.Email,
 		reg.Name,
@@ -152,11 +152,11 @@ func RegisterEvent(c *gin.Context) {
 		reg.Status,
 	)
 
-	// 🔥 RESPONSE
+	// RESPONSE
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Event registration successful",
 		"status":  reg.Status,
-		"qr":      qrURL, // ✅ FRONTEND USE URL
+		"qr":      qrURL, // FRONTEND USE URL
 	})
 }
 
@@ -191,10 +191,16 @@ func GetRegistrationsByEvent(c *gin.Context) {
 // =======================
 func GetEventAnalytics(c *gin.Context) {
 
-	id := c.Param("id")
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid event ID"})
+		return
+	}
+	eventID := uint(id)
 
 	var registrations []models.Registration
-	initializers.DB.Where("event_id = ?", id).Find(&registrations)
+	initializers.DB.Where("event_id = ?", eventID).Find(&registrations)
 
 	total := len(registrations)
 
@@ -220,11 +226,11 @@ func GetEventAnalytics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"total":    total,
-		"waitlist": waitlist,
-		"male":     male,
-		"female":   female,
-		"data":     registrations,
+		"total":         total,
+		"waitlist":      waitlist,
+		"male":          male,
+		"female":        female,
+		"registrations": registrations, 
 	})
 }
 
@@ -280,7 +286,7 @@ func GetEvents(c *gin.Context) {
 
 		var count int64
 
-		// ✅ count registrations
+		// count registrations
 		initializers.DB.
 			Model(&models.Registration{}).
 			Where("event_id = ?", e.ID).
@@ -312,14 +318,14 @@ func DeleteEvent(c *gin.Context) {
 
 	println("Deleting event:", id)
 
-	// ✅ DELETE RELATED REGISTRATIONS
+	// DELETE RELATED REGISTRATIONS
 	res := initializers.DB.
 		Where("event_id = ?", uint(id)).
 		Delete(&models.Registration{})
 
 	println("Deleted registrations:", res.RowsAffected)
 
-	// ✅ DELETE EVENT
+	// DELETE EVENT
 	initializers.DB.Delete(&models.Event{}, id)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -374,7 +380,7 @@ func GetEventByID(c *gin.Context) {
 
 	var count int64
 
-	// ✅ count registrations
+	// count registrations
 	initializers.DB.
 		Model(&models.Registration{}).
 		Where("event_id = ?", event.ID).
@@ -458,7 +464,7 @@ func DeleteRegistration(c *gin.Context) {
 
 	eventID := reg.EventID
 
-	// ❌ DELETE CURRENT
+	// DELETE CURRENT
 	initializers.DB.Delete(&reg)
 
 	//FIND FIRST WAITLIST
@@ -504,4 +510,47 @@ func DeleteRegistration(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Deleted and waitlist updated"})
+}
+
+
+func ScanQR(c *gin.Context) {
+
+	var input struct {
+		ID      uint `json:"id"`
+		EventID uint `json:"event_id"`
+		UserID  uint `json:"user_id"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid QR format"})
+		return
+	}
+
+	var reg models.Registration
+
+	// ✅ MATCH ALL DATA (SECURE)
+	err := initializers.DB.
+		Where("id = ? AND event_id = ? AND user_id = ?", input.ID, input.EventID, input.UserID).
+		First(&reg).Error
+
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	// 🚫 PREVENT DOUBLE SCAN
+	if reg.Attended {
+		c.JSON(400, gin.H{"error": "Already scanned"})
+		return
+	}
+
+	// ✅ MARK ATTENDED
+	reg.Attended = true
+	initializers.DB.Save(&reg)
+
+	c.JSON(200, gin.H{
+		"message": "Attendance marked",
+		"name":    reg.Name,
+	})
+
 }
