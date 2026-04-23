@@ -4,6 +4,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import MentalHealthChatbot from "./components/MentalHealthChatbot";
 
 import Hero from "./components/Hero";
 import QuickInfo from "./components/QuickInfo";
@@ -90,6 +91,7 @@ export default function App() {
 
         <ToastContainer position="top-right" autoClose={3000} />
       </main>
+      <MentalHealthChatbot />
       {/* FOOTER */}
       <Footer />
     </div>
