@@ -12,6 +12,8 @@ import Services from "./components/Services";
 import CTA from "./components/CTA";
 
 import Auth from "./pages/Auth";
+import AboutUs from "./pages/AboutUs";
+import ContactUs from "./pages/ContactUs";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
@@ -69,7 +71,10 @@ export default function App() {
           <Route path="/counsellors" element={<Counsellors />} />
           {/* Counselor Details page */}
           <Route path="/counsellor/:id" element={<CounsellorDetails />} />
-          
+          {/* About Us Page */}
+          <Route path="/about" element={<AboutUs />} />
+          {/* Contact Us Page */}
+          <Route path="/contact" element={<ContactUs />} />
 
           {/* Event List Page */}
           <Route path="/events" element={<EventList />} />
