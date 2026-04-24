@@ -12,4 +12,5 @@ func SetupRoutes(r *gin.Engine) {
 	AppointmentRoutes(r)
 	MoodRoutes(r)
 	TreatmentPlanRoutes(r)
+	ChatbotRoutes(r)
 }

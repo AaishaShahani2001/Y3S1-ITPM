@@ -4,6 +4,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import MentalHealthChatbot from "./components/MentalHealthChatbot";
 
 import Hero from "./components/Hero";
 import QuickInfo from "./components/QuickInfo";
@@ -12,6 +13,8 @@ import Services from "./components/Services";
 import CTA from "./components/CTA";
 
 import Auth from "./pages/Auth";
+import AboutUs from "./pages/AboutUs";
+import ContactUs from "./pages/ContactUs";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
@@ -69,7 +72,10 @@ export default function App() {
           <Route path="/counsellors" element={<Counsellors />} />
           {/* Counselor Details page */}
           <Route path="/counsellor/:id" element={<CounsellorDetails />} />
-          
+          {/* About Us Page */}
+          <Route path="/about" element={<AboutUs />} />
+          {/* Contact Us Page */}
+          <Route path="/contact" element={<ContactUs />} />
 
           {/* Event List Page */}
           <Route path="/events" element={<EventList />} />
@@ -85,6 +91,7 @@ export default function App() {
 
         <ToastContainer position="top-right" autoClose={3000} />
       </main>
+      <MentalHealthChatbot />
       {/* FOOTER */}
       <Footer />
     </div>
