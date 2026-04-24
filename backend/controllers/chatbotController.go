@@ -13,96 +13,70 @@ import (
 )
 
 const (
-	geminiMaxUserChars = 1200
+	chatbotMaxUserChars = 1200
 )
 
-var geminiModelCandidates = []string{
-	"gemini-2.0-flash",
-	"gemini-1.5-flash-latest",
-	"gemini-1.5-pro-latest",
+var groqModelCandidates = []string{
+	"llama-3.1-8b-instant",
+	"llama-3.3-70b-versatile",
 }
 
 type chatbotRequest struct {
 	Message string `json:"message"`
 }
 
-type geminiGenerateRequest struct {
-	Contents         []geminiContent        `json:"contents"`
-	GenerationConfig geminiGenerationConfig `json:"generationConfig"`
+type groqChatRequest struct {
+	Model       string        `json:"model"`
+	Messages    []groqMessage `json:"messages"`
+	Temperature float64       `json:"temperature"`
+	MaxTokens   int           `json:"max_tokens"`
 }
 
-type geminiContent struct {
-	Role  string       `json:"role"`
-	Parts []geminiPart `json:"parts"`
+type groqMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
-type geminiPart struct {
-	Text string `json:"text"`
-}
-
-type geminiGenerationConfig struct {
-	Temperature     float64 `json:"temperature"`
-	MaxOutputTokens int     `json:"maxOutputTokens"`
-}
-
-type geminiGenerateResponse struct {
-	Candidates []struct {
-		Content struct {
-			Parts []struct {
-				Text string `json:"text"`
-			} `json:"parts"`
-		} `json:"content"`
-	} `json:"candidates"`
+type groqChatResponse struct {
+	Choices []struct {
+		Message groqMessage `json:"message"`
+	} `json:"choices"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
 }
 
-func mentalHealthPrompt(userMessage string) string {
+func mentalHealthSystemPrompt() string {
 	return "You are MindBridge's mental wellbeing support assistant for university students. " +
 		"Respond in a calm, empathetic, and practical way. Keep responses concise and supportive. " +
 		"Do not diagnose medical conditions or prescribe medication. " +
 		"If the user expresses immediate danger, self-harm, suicide, or harm to others, " +
 		"tell them to contact local emergency services and a trusted person immediately. " +
-		"Suggest booking a counsellor through MindBridge when appropriate.\n\nUser message: " + userMessage
+		"Suggest booking a counsellor through MindBridge when appropriate."
 }
 
-func extractGeminiText(resp geminiGenerateResponse) (string, error) {
+func extractGroqText(resp groqChatResponse) (string, error) {
 	if resp.Error != nil && strings.TrimSpace(resp.Error.Message) != "" {
 		return "", errors.New(resp.Error.Message)
 	}
-	if len(resp.Candidates) == 0 {
-		return "", errors.New("no response candidates from Gemini")
+	if len(resp.Choices) == 0 {
+		return "", errors.New("no response choices from Groq")
 	}
-	parts := resp.Candidates[0].Content.Parts
-	if len(parts) == 0 {
-		return "", errors.New("empty response from Gemini")
-	}
-	text := strings.TrimSpace(parts[0].Text)
+	text := strings.TrimSpace(resp.Choices[0].Message.Content)
 	if text == "" {
-		return "", errors.New("empty text response from Gemini")
+		return "", errors.New("empty text response from Groq")
 	}
 	return text, nil
 }
 
-func shouldTryNextModel(err error) bool {
-	if err == nil {
-		return false
-	}
-	errMsg := strings.ToLower(err.Error())
-	return strings.Contains(errMsg, "not found") ||
-		strings.Contains(errMsg, "not supported") ||
-		strings.Contains(errMsg, "unsupported") ||
-		strings.Contains(errMsg, "invalid")
-}
-
-func callGeminiModel(httpClient *http.Client, apiKey, model string, requestBody []byte) (string, error) {
-	endpoint := "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey
+func callGroq(httpClient *http.Client, apiKey string, requestBody []byte) (string, error) {
+	endpoint := "https://api.groq.com/openai/v1/chat/completions"
 	httpReq, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return "", errors.New("failed to build AI request")
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := httpClient.Do(httpReq)
 	if err != nil {
@@ -110,16 +84,27 @@ func callGeminiModel(httpClient *http.Client, apiKey, model string, requestBody 
 	}
 	defer resp.Body.Close()
 
-	var geminiResp geminiGenerateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&geminiResp); err != nil {
+	var groqResp groqChatResponse
+	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
 		return "", errors.New("failed to decode AI response")
 	}
 
-	reply, err := extractGeminiText(geminiResp)
+	reply, err := extractGroqText(groqResp)
 	if err != nil {
 		return "", err
 	}
 	return reply, nil
+}
+
+func shouldTryNextGroqModel(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "decommissioned") ||
+		strings.Contains(errMsg, "not supported") ||
+		strings.Contains(errMsg, "invalid model") ||
+		strings.Contains(errMsg, "model")
 }
 
 func ChatWithGemini(c *gin.Context) {
@@ -134,56 +119,51 @@ func ChatWithGemini(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Message is required"})
 		return
 	}
-	if len(message) > geminiMaxUserChars {
+	if len(message) > chatbotMaxUserChars {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Message is too long"})
 		return
 	}
 
-	apiKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
+	apiKey := strings.TrimSpace(os.Getenv("GROQ_API_KEY"))
 	if apiKey == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server is missing GEMINI_API_KEY"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server is missing GROQ_API_KEY"})
 		return
 	}
 
-	payload := geminiGenerateRequest{
-		Contents: []geminiContent{
-			{
-				Role: "user",
-				Parts: []geminiPart{
-					{Text: mentalHealthPrompt(message)},
-				},
-			},
-		},
-		GenerationConfig: geminiGenerationConfig{
-			Temperature:     0.6,
-			MaxOutputTokens: 320,
-		},
-	}
-
-	requestBody, err := json.Marshal(payload)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare AI request"})
-		return
-	}
-
-	httpClient := &http.Client{Timeout: 25 * time.Second}
-
-	modelsToTry := make([]string, 0, len(geminiModelCandidates)+1)
-	if envModel := strings.TrimSpace(os.Getenv("GEMINI_MODEL")); envModel != "" {
+	modelsToTry := make([]string, 0, len(groqModelCandidates)+1)
+	if envModel := strings.TrimSpace(os.Getenv("GROQ_MODEL")); envModel != "" {
 		modelsToTry = append(modelsToTry, envModel)
 	}
-	modelsToTry = append(modelsToTry, geminiModelCandidates...)
+	modelsToTry = append(modelsToTry, groqModelCandidates...)
+
+	httpClient := &http.Client{Timeout: 25 * time.Second}
 
 	var reply string
 	var usedModel string
 	var lastErr error
 	for _, model := range modelsToTry {
+		payload := groqChatRequest{
+			Model: model,
+			Messages: []groqMessage{
+				{Role: "system", Content: mentalHealthSystemPrompt()},
+				{Role: "user", Content: message},
+			},
+			Temperature: 0.6,
+			MaxTokens:   320,
+		}
+
+		requestBody, err := json.Marshal(payload)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare AI request"})
+			return
+		}
+
 		usedModel = model
-		reply, lastErr = callGeminiModel(httpClient, apiKey, model, requestBody)
+		reply, lastErr = callGroq(httpClient, apiKey, requestBody)
 		if lastErr == nil {
 			break
 		}
-		if !shouldTryNextModel(lastErr) {
+		if !shouldTryNextGroqModel(lastErr) {
 			break
 		}
 	}
