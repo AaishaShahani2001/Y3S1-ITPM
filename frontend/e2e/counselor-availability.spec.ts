@@ -1,35 +1,62 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function seedLoggedInCounselor(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+function futureIsoDate(daysAhead: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+async function seedLoggedInUser(page: Page, role = "counselor"): Promise<void> {
+  await page.addInitScript((r) => {
     localStorage.setItem(
       "user",
       JSON.stringify({
-        token: "e2e-counselor-token",
+        token: "e2e-token",
         id: 17,
-        name: "Dr. E2E Counselor",
-        email: "counselor@test.local",
-        role: "counselor",
+        name: "E2E Counselor",
+        email: "counselor-e2e@test.local",
+        role: r,
       })
     );
+  }, role);
+}
+
+async function mockCounsellorDirectoryApis(page: Page): Promise<void> {
+  await page.route("**/api/counsellor/all", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: 17,
+          fullName: "Dr. E2E Counselor",
+          specialization: "Stress Management",
+          experience: 6,
+          workplace: "MindBridge Wellness",
+          about: "E2E profile",
+          profileImage: "",
+        },
+      ]),
+    });
+  });
+
+  await page.route("**/api/counsellor/apply", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "Application submitted" }),
+    });
   });
 }
 
-async function mockManagePlanApis(page: Page): Promise<void> {
-  let plans: Array<{
-    id: number;
-    appointment_id: number;
-    counsellor_id: number;
-    counsellor_name: string;
-    student_id: number;
-    student_name: string;
-    title: string;
-    description: string;
-    status: string;
-    steps_data: unknown;
-    updated_at: string;
-  }> = [];
-
+async function mockDashboardApis(page: Page, date: string): Promise<void> {
   await page.route("**/api/counsellor/profile/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -42,6 +69,14 @@ async function mockManagePlanApis(page: Page): Promise<void> {
     });
   });
 
+  await page.route("**/api/appointments/counselor", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+
   await page.route("**/api/counsellor/location/me", async (route) => {
     await route.fulfill({
       status: 200,
@@ -50,120 +85,108 @@ async function mockManagePlanApis(page: Page): Promise<void> {
     });
   });
 
-  await page.route("**/api/appointments/counselor", async (route) => {
+  await page.route("**/api/counsellor/availability/17", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify([
         {
-          id: 501,
-          student_id: 72,
-          student_name: "E2E Student",
-          date: "2026-05-05",
-          time_slot: "10:00 AM - 11:00 AM",
-          mood: "stressed",
-          status: "confirmed",
+          id: 1,
+          date,
+          startTime: "10:00",
+          endTime: "11:00",
         },
       ]),
     });
   });
 
-  await page.route("**/api/treatment-plans", async (route) => {
-    const req = route.request();
-    if (req.method() === "GET") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(plans),
-      });
+  await page.route("**/api/counsellor/availability", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
       return;
     }
-
-    if (req.method() === "POST") {
-      const body = req.postDataJSON() as {
-        appointment_id: number;
-        counsellor_id: number;
-        student_id: number;
-        title: string;
-        description: string;
-        status: string;
-        steps_data: unknown;
-      };
-
-      const created = {
-        id: 9001,
-        appointment_id: body.appointment_id,
-        counsellor_id: body.counsellor_id,
-        counsellor_name: "Dr. E2E Counselor",
-        student_id: body.student_id,
-        student_name: "E2E Student",
-        title: body.title,
-        description: body.description,
-        status: body.status,
-        steps_data: body.steps_data,
-        updated_at: "2026-05-01T08:00:00.000Z",
-      };
-      plans = [created];
-
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(created),
-      });
-      return;
-    }
-
-    await route.continue();
+    const body = route.request().postDataJSON() as {
+      date: string;
+      startTime: string;
+      endTime: string;
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 200,
+        date: body.date,
+        startTime: body.startTime,
+        endTime: body.endTime,
+      }),
+    });
   });
 }
 
-test("adds treatment plan for an appointment in ManagePlansTab", async ({ page }) => {
-  await seedLoggedInCounselor(page);
-  await mockManagePlanApis(page);
-  await page.goto("/counselor-dashboard");
+test.describe("Counselor onboarding and availability", () => {
+  test.beforeEach(async ({ page }) => {
+    await seedLoggedInUser(page);
+  });
 
-  await page.getByRole("button", { name: "Manage Treatment Plans" }).click();
-  await expect(page.getByText("Treatment Plans Hub")).toBeVisible();
+  test("BecomeCounsellorModal: fills all steps and submits application", async ({ page }) => {
+    await mockCounsellorDirectoryApis(page);
+    await page.goto("/counsellors");
 
-  await page.getByRole("button", { name: /Add Plan/i }).click();
-  await expect(page.getByText("Create New Treatment Plan")).toBeVisible();
+    await page.getByRole("button", { name: "Become a Counsellor" }).click();
+    await expect(page.getByText("Join Our Expert Team")).toBeVisible();
 
-  const selects = page.locator("select");
-  await selects.nth(0).selectOption("501");
-  await selects.nth(1).selectOption("Stress Reduction & Breathing Routine");
+    await page.getByPlaceholder("Dr. Jane Doe").fill("Jane Doe");
+    await page.getByPlaceholder("jane@university.edu").fill("jane.doe@test.local");
+    await page.getByPlaceholder("+94 77 123 4567").fill("0771234567");
+    await page.getByPlaceholder("A short sentence about your expertise...").fill(
+      "I provide student counseling."
+    );
+    await page.getByRole("button", { name: /Next Step/i }).click();
 
-  await page.getByPlaceholder("e.g. Reduce panic symptoms").fill("Reduce exam-related panic symptoms");
-  await selects.nth(2).selectOption("Active");
+    await page.locator("select").first().selectOption("Stress Management");
+    await page.getByPlaceholder("e.g. SLMC-123456").fill("SLMC-123456");
+    await page.getByPlaceholder("e.g. Ph.D. in Clinical Psychology").fill("Clinical Psychology");
+    await page.getByPlaceholder("5", { exact: true }).fill("5");
+    await page.getByPlaceholder("University Wellness Center").fill("University Wellness Center");
+    await page.getByRole("button", { name: /Next Step/i }).click();
 
-  await page.getByPlaceholder("Step title").nth(0).fill("Breathing reset");
-  await page.getByPlaceholder("Step title").nth(1).fill("Thought journaling");
-  await page.getByPlaceholder("Step title").nth(2).fill("Time-block planning");
-  await page.getByPlaceholder("Step title").nth(3).fill("Weekly review");
+    const nicFile = page.locator('input[type="file"]').nth(0);
+    const certFiles = page.locator('input[type="file"]').nth(1);
+    await nicFile.setInputFiles({
+      name: "nic-front.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("fake image"),
+    });
+    await certFiles.setInputFiles([
+      {
+        name: "cert-1.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("fake certificate 1"),
+      },
+      {
+        name: "cert-2.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("fake certificate 2"),
+      },
+    ]);
 
-  await page
-    .getByPlaceholder("Instructions / notes for the student")
-    .nth(0)
-    .fill("Practice 4-7-8 breathing each morning for 10 minutes.");
-  await page
-    .getByPlaceholder("Instructions / notes for the student")
-    .nth(1)
-    .fill("Write stress triggers and alternate balanced thoughts.");
-  await page
-    .getByPlaceholder("Instructions / notes for the student")
-    .nth(2)
-    .fill("Create daily 2-hour focused study blocks.");
-  await page
-    .getByPlaceholder("Instructions / notes for the student")
-    .nth(3)
-    .fill("Review progress and blockers every Sunday.");
+    await page.getByRole("button", { name: /Submit Application/i }).click();
+    await expect(page.getByText("Application Received!")).toBeVisible();
+  });
 
-  await page.getByPlaceholder("Morning routine...").fill("Wake at 6:30 AM, hydrate, 10-minute breathwork.");
-  await page.getByPlaceholder("Books, articles...").fill("Read one anxiety-management article daily.");
-  await page.getByPlaceholder("Physical activities...").fill("30-minute walk, 5 days per week.");
+  test("AvailabilityTab: adds a new availability slot", async ({ page }) => {
+    const targetDate = futureIsoDate(20);
+    await mockDashboardApis(page, targetDate);
+    await page.goto("/counselor-dashboard");
 
-  await page.getByRole("button", { name: "Generate & Publish Plan" }).click();
-  await expect(page.getByText("Treatment plan added successfully!")).toBeVisible();
+    await page.getByRole("button", { name: "Manage Availability" }).click();
+    await expect(page.getByText("Availability Settings")).toBeVisible();
 
-  await expect(page.getByText("E2E Student")).toBeVisible();
-  await expect(page.getByText("Reduce exam-related panic symptoms")).toBeVisible();
+    await page.locator('input[type="date"]').first().fill(targetDate);
+    await page.locator('input[type="time"]').nth(0).fill("13:00");
+    await page.locator('input[type="time"]').nth(1).fill("14:00");
+    await page.getByRole("button", { name: "Authorize Schedule Slot" }).click();
+
+    await expect(page.getByText("1 slot(s) added successfully")).toBeVisible();
+  });
 });
