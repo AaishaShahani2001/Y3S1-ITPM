@@ -236,12 +236,12 @@ export default function Calendar() {
                                     return (
                                         <div key={apptId} className="group rounded-2xl border border-blue-100/80 bg-white p-4 hover:shadow-md hover:shadow-blue-500/5 hover:border-blue-300 transition-all duration-300">
                                             <div className="flex items-center justify-between gap-2 mb-3">
-                                                <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                                <div className="text-sm font-black text-slate-800 flex items-center gap-2">
                                                     <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
                                                         <FaUser className="text-[10px]" />
                                                     </div>
                                                     {a.studentName || "Unknown Student"}
-                                                </p>
+                                                </div>
                                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getStatusBadge(a.status)}`}>
                                                     {a.status || "Pending"}
                                                 </span>
@@ -282,7 +282,7 @@ export default function Calendar() {
             </div>
 
             {/* Custom scrollbar styles */}
-            <style jsx>{`
+            <style>{`
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 6px;
                 }
