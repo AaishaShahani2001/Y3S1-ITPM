@@ -14,7 +14,7 @@ func SendEventRegistrationEmail(to, name, title, date, location, qrURL string, s
 		subject = "Event Registration Confirmed"
 	}
 
-	// ✅ USE BASE64 (CORRECT)
+	// USE BASE64 (CORRECT)
 	qrImage := ""
 	if qrURL != "" {
 		qrImage = fmt.Sprintf(`

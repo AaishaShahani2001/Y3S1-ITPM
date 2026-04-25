@@ -108,7 +108,7 @@ export default function MyEvents() {
           </p>
         </div>
 
-        {/* ✅ SELECTED DATE EVENTS */}
+        {/* SELECTED DATE EVENTS */}
         {filteredEvents.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -225,7 +225,7 @@ export default function MyEvents() {
                   Cancel Registration
                 </motion.button>
 
-                {/* 🔥 QR SECTION (ONLY FOR CONFIRMED USERS) */}
+                {/* QR SECTION (ONLY FOR CONFIRMED USERS) */}
                 {e.status === "confirmed" && e.qr && (
                   <div className="mt-4 text-center">
                     <button
@@ -320,7 +320,7 @@ export default function MyEvents() {
                               const link = document.createElement("a");
                               link.href = e.qr;
                               link.download = `event_qr_${e.id}.png`;
-                              link.target = "_blank"; // 🔥 important
+                              link.target = "_blank"; 
 
                               document.body.appendChild(link);
                               link.click();

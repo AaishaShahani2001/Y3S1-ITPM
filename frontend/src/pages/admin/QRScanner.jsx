@@ -4,8 +4,8 @@ import { useParams } from "react-router-dom";
 
 export default function QRScannerPage() {
   const videoRef = useRef(null);
-  const scannedRef = useRef(false); // 🔥 prevent multiple scans
-  const scannerRef = useRef(null);  // 🔥 keep scanner instance
+  const scannedRef = useRef(false); // prevent multiple scans
+  const scannerRef = useRef(null);  // keep scanner instance
 
   const { id } = useParams(); // event ID
 
@@ -14,11 +14,11 @@ export default function QRScannerPage() {
       videoRef.current,
       async (result) => {
 
-        // 🔴 STOP multiple scans
+        // STOP multiple scans
         if (scannedRef.current) return;
 
         try {
-          scannedRef.current = true; // 🔒 lock scanning
+          scannedRef.current = true; 
 
           console.log("QR RAW:", result.data);
 
@@ -64,7 +64,7 @@ export default function QRScannerPage() {
 
           alert("✅ Attendance Marked!");
 
-          // 🔥 STOP scanning after success
+          // STOP scanning after success
           scannerRef.current.stop();
 
         } catch (err) {
@@ -86,7 +86,7 @@ export default function QRScannerPage() {
     };
   }, [id]);
 
-  // 🔥 OPTIONAL: scan next student
+  //  OPTIONAL: scan next student
   const handleScanNext = () => {
     scannedRef.current = false;
     scannerRef.current.start();
@@ -101,7 +101,7 @@ export default function QRScannerPage() {
         className="w-full max-w-md border rounded"
       />
 
-      {/* 🔥 Scan next button */}
+      {/* Scan next button */}
       <button
         onClick={handleScanNext}
         className="mt-4 px-4 py-2 bg-green-600 text-white rounded"
