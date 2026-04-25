@@ -4,22 +4,54 @@ import (
 	"backend/email"
 	"backend/initializers"
 	"backend/models"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
+
+const highUrgencyThreshold = 7
+
+func applyWaitlistPriorityOrder(db *gorm.DB) *gorm.DB {
+	return db.
+		Order(fmt.Sprintf("CASE WHEN urgency >= %d THEN 0 ELSE 1 END ASC", highUrgencyThreshold)).
+		Order("created_at ASC").
+		Order("id ASC")
+}
+
+func getWaitlistQueuePosition(entry models.AppointmentWaitlist) int {
+	var pos int64
+	base := initializers.DB.Model(&models.AppointmentWaitlist{}).
+		Where("counsellor_id = ? AND date = ? AND time_slot = ? AND status IN ?",
+			entry.CounsellorID, entry.Date, entry.TimeSlot, []string{"waiting", "notified"})
+
+	if entry.Urgency >= highUrgencyThreshold {
+		base = base.Where(
+			"urgency >= ? AND (created_at < ? OR (created_at = ? AND id <= ?))",
+			highUrgencyThreshold, entry.CreatedAt, entry.CreatedAt, entry.ID,
+		)
+	} else {
+		base = base.Where(
+			"urgency >= ? OR (urgency < ? AND (created_at < ? OR (created_at = ? AND id <= ?)))",
+			highUrgencyThreshold, highUrgencyThreshold, entry.CreatedAt, entry.CreatedAt, entry.ID,
+		)
+	}
+
+	base.Count(&pos)
+	return int(pos)
+}
 
 // PromoteNextWaitlistForSlot notifies the next waiting student when a slot becomes free.
 func PromoteNextWaitlistForSlot(counsellorID uint, date, timeSlot string) {
 	var next models.AppointmentWaitlist
-	err := initializers.DB.
+	query := initializers.DB.
 		Where("counsellor_id = ? AND date = ? AND time_slot = ? AND status = ?",
-			counsellorID, date, timeSlot, "waiting").
-		Order("created_at ASC").
-		First(&next).Error
+			counsellorID, date, timeSlot, "waiting")
+	err := applyWaitlistPriorityOrder(query).First(&next).Error
 	if err != nil {
 		return
 	}
@@ -87,6 +119,7 @@ func JoinAppointmentWaitlist(c *gin.Context) {
 		CounsellorID string `json:"counsellorId"`
 		Date         string `json:"date"`
 		TimeSlot     string `json:"timeSlot"`
+		Urgency      int    `json:"urgency"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -144,6 +177,7 @@ func JoinAppointmentWaitlist(c *gin.Context) {
 		CounsellorID: counsellorID,
 		Date:         input.Date,
 		TimeSlot:     input.TimeSlot,
+		Urgency:      input.Urgency,
 		Status:       "waiting",
 	}
 	if err := initializers.DB.Create(&entry).Error; err != nil {
@@ -151,16 +185,12 @@ func JoinAppointmentWaitlist(c *gin.Context) {
 		return
 	}
 
-	var pos int64
-	initializers.DB.Model(&models.AppointmentWaitlist{}).
-		Where("counsellor_id = ? AND date = ? AND time_slot = ? AND status IN ? AND id <= ?",
-			counsellorID, input.Date, input.TimeSlot, []string{"waiting", "notified"}, entry.ID).
-		Count(&pos)
+	pos := getWaitlistQueuePosition(entry)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":       "Joined waitlist",
 		"id":            entry.ID,
-		"queuePosition": int(pos),
+		"queuePosition": pos,
 		"data":          entry,
 	})
 }
@@ -186,8 +216,9 @@ func GetStudentWaitlist(c *gin.Context) {
 	}
 
 	var entries []models.AppointmentWaitlist
-	if err := initializers.DB.Where("student_id = ? AND status IN ?", user.ID, []string{"waiting", "notified"}).
-		Order("date ASC, created_at ASC").Find(&entries).Error; err != nil {
+	query := initializers.DB.Where("student_id = ? AND status IN ?", user.ID, []string{"waiting", "notified"}).
+		Order("date ASC")
+	if err := applyWaitlistPriorityOrder(query).Find(&entries).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load waitlist"})
 		return
 	}
@@ -197,17 +228,11 @@ func GetStudentWaitlist(c *gin.Context) {
 		var ca models.CounsellorApplication
 		_ = initializers.DB.Where("user_id = ? AND status = ?", e.CounsellorID, "approved").First(&ca).Error
 
-		var pos int64
-		initializers.DB.Model(&models.AppointmentWaitlist{}).
-			Where("counsellor_id = ? AND date = ? AND time_slot = ? AND status IN ? AND id <= ?",
-				e.CounsellorID, e.Date, e.TimeSlot, []string{"waiting", "notified"}, e.ID).
-			Count(&pos)
-
 		out = append(out, studentWaitlistOut{
 			AppointmentWaitlist: e,
-			CounselorName:     ca.FullName,
-			Specialization:    ca.Specialization,
-			QueuePosition:     int(pos),
+			CounselorName:      ca.FullName,
+			Specialization:     ca.Specialization,
+			QueuePosition:      getWaitlistQueuePosition(e),
 		})
 	}
 
@@ -273,8 +298,9 @@ func GetCounselorWaitlist(c *gin.Context) {
 	}
 
 	var entries []models.AppointmentWaitlist
-	if err := initializers.DB.Where("counsellor_id = ? AND status IN ?", user.ID, []string{"waiting", "notified"}).
-		Order("date ASC, created_at ASC").Find(&entries).Error; err != nil {
+	query := initializers.DB.Where("counsellor_id = ? AND status IN ?", user.ID, []string{"waiting", "notified"}).
+		Order("date ASC")
+	if err := applyWaitlistPriorityOrder(query).Find(&entries).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load waitlist"})
 		return
 	}
@@ -283,15 +309,10 @@ func GetCounselorWaitlist(c *gin.Context) {
 	for _, e := range entries {
 		var st models.User
 		_ = initializers.DB.First(&st, e.StudentID).Error
-		var pos int64
-		initializers.DB.Model(&models.AppointmentWaitlist{}).
-			Where("counsellor_id = ? AND date = ? AND time_slot = ? AND status IN ? AND id <= ?",
-				e.CounsellorID, e.Date, e.TimeSlot, []string{"waiting", "notified"}, e.ID).
-			Count(&pos)
 		out = append(out, counselorWaitlistOut{
 			AppointmentWaitlist: e,
 			StudentName:         st.Name,
-			QueuePosition:       int(pos),
+			QueuePosition:       getWaitlistQueuePosition(e),
 		})
 	}
 	c.JSON(http.StatusOK, out)

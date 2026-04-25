@@ -73,9 +73,32 @@ export default function Auth() {
         JSON.stringify({
           ...res.data.user,
           token: res.data.token,
+          counselorApplication: res.data.counselorApplication || null,
         })
       );
       setTimeout(() => {
+        const app = res?.data?.counselorApplication;
+        const appStatus = (app?.status || "").toLowerCase();
+        const role = (res?.data?.user?.role || "").toLowerCase();
+
+        // Pending counselor applicants get a separate interview-tracking dashboard.
+        if (appStatus === "pending") {
+          navigate("/pending-counselor-dashboard");
+          return;
+        }
+        if (role === "admin") {
+          navigate("/admin-dashboard");
+          return;
+        }
+        if (role === "counselor") {
+          navigate("/counselor-dashboard");
+          return;
+        }
+        if (role === "student") {
+          navigate("/student-dashboard");
+          return;
+        }
+
         const redirect = localStorage.getItem("redirectAfterLogin");
         if (redirect === "booking-step3" || redirect === "booking-step4") {
           navigate("/book-appointment");
@@ -91,7 +114,7 @@ export default function Auth() {
 
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-blue-100 bg-linear-to-br from-blue-50 to-blue-200 flex-col h-screen font-sans">
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-[#fdf7ea] via-[#f6ecd7] to-[#f1e3c8] flex-col h-screen font-sans">
       <div className={`relative bg-white rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden w-212.5 max-w-full min-h-162.5 ${isSignUp ? "active" : ""}`} id="container">
 
         {/* Sign Up Form */}

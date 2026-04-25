@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { FaBars, FaTimes, FaChevronDown, FaCalendarCheck, FaClipboardList, FaUsers } from "react-icons/fa";
+import { FaBars, FaTimes, FaChevronDown, FaCalendarCheck, FaClipboardList, FaUsers, FaUserCircle } from "react-icons/fa";
+import logo from "../assets/Logo.png";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,6 +36,12 @@ export default function Navbar() {
 
   const handleProfileClick = () => {
     if (!user) return;
+    // Pending counselor application users always enter interview-tracking dashboard.
+    const appStatus = (user?.counselorApplication?.status || "").toLowerCase();
+    if (appStatus === "pending") {
+      navigate("/pending-counselor-dashboard");
+      return;
+    }
     if (user.role === "student") {
       navigate("/student-dashboard");
     } else if (user.role === "counselor") {
@@ -51,15 +58,13 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-999 bg-white/70 backdrop-blur-3xl border-b border-white/40 shadow-[0_1px_15px_rgba(37,99,235,0.05)]">
+    <nav className="sticky top-0 z-999 bg-white/40 backdrop-blur-3xl border-b border-slate-100 shadow-[0_1px_15px_rgba(37,99,235,0.05)]">
 
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
 
         {/* LOGO */}
         <Link to="/" className="text-2xl font-black text-blue-600 flex items-center gap-2 tracking-tight">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-200">
-            <FaUsers className="text-sm" />
-          </div>
+          <img src={logo} alt="MindBridge logo" className="w-9 h-9 rounded-lg object-cover shadow-lg shadow-blue-200" />
           MindBridge
         </Link>
 
@@ -78,7 +83,7 @@ export default function Navbar() {
               Services <FaChevronDown className={`text-[10px] transition-transform duration-300 ${isServicesOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <div className={`absolute top-full left-0 w-72 bg-white/80 backdrop-blur-3xl rounded-4xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-white/60 p-3 mt-2 transition-all duration-500 transform ${isServicesOpen ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-4 invisible'}`}>
+            <div className={`absolute top-full left-0 w-72 bg-[#FAF3E0]/95 backdrop-blur-3xl rounded-4xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-[#f1e4cb] p-3 mt-2 transition-all duration-500 transform ${isServicesOpen ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-4 invisible'}`}>
 
               <Link
                 to="/book-appointment"
@@ -125,15 +130,20 @@ export default function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-4 pl-4 border-l border-slate-100">
-              <div
+              <button
                 onClick={handleProfileClick}
-                className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center cursor-pointer font-bold uppercase hover:shadow-lg hover:shadow-blue-200 transition-all"
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all"
+                type="button"
               >
-                {user.name?.charAt(0)}
-              </div>
+                <FaUserCircle className="text-xl shrink-0" />
+                <span className="text-xs font-bold normal-case max-w-[120px] truncate">
+                  {user.name || "Profile"}
+                </span>
+              </button>
               <button
                 onClick={handleLogout}
-                className="text-xs text-red-500 hover:text-red-700 font-bold"
+                type="button"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all"
               >
                 Logout
               </button>
@@ -160,7 +170,7 @@ export default function Navbar() {
 
       {/* MOBILE MENU DROPDOWN */}
       <div
-        className={`md:hidden absolute top-full left-0 w-full bg-white shadow-2xl border-t border-slate-100 transition-all duration-300 ease-in-out ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-5 pointer-events-none"}`}
+        className={`md:hidden absolute top-full left-0 w-full bg-[#FAF3E0] shadow-2xl border-t border-[#f1e4cb] transition-all duration-300 ease-in-out ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-5 pointer-events-none"}`}
       >
         <div className="flex flex-col p-6 gap-2 text-slate-600 font-bold uppercase tracking-widest text-sm">
           <Link to="/" className="p-4 hover:bg-slate-50 rounded-xl" onClick={() => setIsOpen(false)}>Home</Link>

@@ -101,16 +101,13 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// If user has a pending counselor application, block login until admin approval.
-	var pendingApplication models.CounsellorApplication
-	if err := initializers.DB.
-		Where("user_id = ? AND status = ?", user.ID, "pending").
-		First(&pendingApplication).Error; err == nil {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Your counselor profile is under review. After admin approval, you can join.",
-		})
-		return
-	}
+	// Attach latest counselor application state so frontend can decide
+	// whether user should see pending interview dashboard or role dashboard.
+	var latestApplication models.CounsellorApplication
+	hasApplication := initializers.DB.
+		Where("user_id = ?", user.ID).
+		Order("created_at desc").
+		First(&latestApplication).Error == nil
 
 	// Create JWT with role
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -140,6 +137,40 @@ func Login(c *gin.Context) {
 			"role":  user.Role,
 		},
 		"token": tokenString,
+		// Interview/application metadata is stored by frontend in localStorage user object.
+		"counselorApplication": gin.H{
+			"exists": hasApplication,
+			"id": func() uint {
+				if hasApplication {
+					return latestApplication.ID
+				}
+				return 0
+			}(),
+			"status": func() string {
+				if hasApplication {
+					return latestApplication.Status
+				}
+				return ""
+			}(),
+			"interviewDate": func() interface{} {
+				if hasApplication {
+					return latestApplication.InterviewDate
+				}
+				return nil
+			}(),
+			"interviewStatus": func() string {
+				if hasApplication {
+					return latestApplication.InterviewStatus
+				}
+				return ""
+			}(),
+			"interviewMode": func() string {
+				if hasApplication {
+					return latestApplication.InterviewMode
+				}
+				return ""
+			}(),
+		},
 	})
 }
 

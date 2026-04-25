@@ -3,6 +3,8 @@ import {
   FaUserCircle, FaCalendarPlus, FaClipboardList, FaCalendar,
   FaStethoscope, FaChartLine, FaSignOutAlt, FaBell, FaSearch
 } from "react-icons/fa";
+import { FiMenu, FiX } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = "http://localhost:3000";
 import OverviewTab from "../../components/counselor/OverviewTab";
@@ -11,6 +13,8 @@ import ProfileTab from "../../components/counselor/ProfileTab";
 import AvailabilityTab from "../../components/counselor/AvailabilityTab";
 import AppointmentsTab from "../../components/counselor/AppointmentsTab";
 import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+import InterviewDashboard from "../../components/counselor/InterviewDashboard";
+import logo from "../../assets/Logo.png";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaChartLine /> },
@@ -18,11 +22,14 @@ const TABS = [
   { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
   { id: "availability", label: "Manage Availability", icon: <FaCalendarPlus /> },
   { id: "appointments", label: "Student Appointments", icon: <FaClipboardList /> },
+  { id: "interview", label: "Interview Timeline", icon: <FaCalendar /> },
   { id: "manage-plans", label: "Manage Treatment Plans", icon: <FaStethoscope /> },
 ];
 
 export default function CounselorDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
   const user = (() => {
     try {
       const raw = localStorage.getItem("user");
@@ -32,11 +39,24 @@ export default function CounselorDashboard() {
     }
   })();
 
+  useEffect(() => {
+    if (!user?.token) {
+      navigate("/auth");
+      return;
+    }
+    const appStatus = (user?.counselorApplication?.status || "").toLowerCase();
+    // Pending applicants are restricted to the dedicated pending interview dashboard.
+    if (appStatus === "pending") {
+      navigate("/pending-counselor-dashboard");
+    }
+  }, [navigate, user?.token, user?.counselorApplication?.status]);
+
   const [headerProfile, setHeaderProfile] = useState(() => ({
     fullName: user?.name || "",
     specialization: "",
     profileImage: "",
   }));
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -65,14 +85,27 @@ export default function CounselorDashboard() {
     ? `${API_BASE}/${headerProfile.profileImage}`
     : null;
 
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [avatarUrl]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    window.location.href = "/auth";
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
 
       {/* SIDEBAR */}
-      <aside className="w-20 md:w-64 bg-slate-900 text-white flex flex-col sticky top-0 h-screen transition-all duration-300">
+      <aside
+        className={`relative bg-[#fff9ee] text-slate-800 flex flex-col sticky top-0 h-screen transition-all duration-300 border-r border-[#e8dcc3] ${
+          isSidebarOpen ? "w-64" : "w-20"
+        }`}
+      >
         <div className="p-4 md:p-8 flex items-center justify-center md:justify-start gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-lg font-black">M</div>
-          <span className="hidden md:block text-lg font-black tracking-tighter">MindBridge</span>
+          <img src={logo} alt="MindBridge logo" className="w-8 h-8 rounded-lg object-cover shadow-lg shadow-blue-500/20" />
+          {isSidebarOpen && <span className="text-lg font-black tracking-tighter">MindBridge</span>}
         </div>
 
         <nav className="flex-1 mt-6 px-3 space-y-1.5">
@@ -81,22 +114,35 @@ export default function CounselorDashboard() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center justify-center md:justify-start gap-3 p-3.5 rounded-xl transition-all group ${activeTab === tab.id
-                ? "bg-blue-600 text-white shadow-md shadow-blue-900/50"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-200/70"
+                : "text-slate-600 hover:bg-[#f3e8cf] hover:text-slate-900"
                 }`}
             >
               <span className="text-lg">{tab.icon}</span>
-              <span className="hidden md:block font-bold text-xs tracking-wide">{tab.label}</span>
+              {isSidebarOpen && <span className="font-bold text-xs tracking-wide">{tab.label}</span>}
             </button>
           ))}
         </nav>
 
-        <div className="p-4 md:p-8 border-t border-slate-800">
-          <button className="w-full flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:text-red-400 transition-colors">
+        <div className="p-4 md:p-8 border-t border-[#e8dcc3]">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center md:justify-start gap-3 text-rose-600 hover:bg-rose-50 rounded-xl px-3 py-2 transition-colors"
+          >
             <FaSignOutAlt className="text-lg" />
-            <span className="hidden md:block font-bold text-xs">Logout</span>
+            {isSidebarOpen && <span className="font-bold text-xs">Logout</span>}
           </button>
         </div>
+
+        <button
+          type="button"
+          aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          onClick={() => setSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-3 top-24 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-[#e8dcc3] bg-[#fff9ee] text-slate-500 shadow-sm transition-colors hover:border-blue-400 hover:text-blue-500"
+        >
+          {isSidebarOpen ? <FiX size={14} /> : <FiMenu size={14} />}
+        </button>
       </aside>
 
       {/* MAIN CONTENT */}
@@ -129,10 +175,11 @@ export default function CounselorDashboard() {
                 </p>
               </div>
               <div className="w-8 h-8 shrink-0 rounded-lg bg-slate-200 overflow-hidden ring-2 ring-slate-50 ring-offset-1 flex items-center justify-center">
-                {avatarUrl ? (
+                {avatarUrl && !avatarLoadError ? (
                   <img
                     src={avatarUrl}
                     alt=""
+                    onError={() => setAvatarLoadError(true)}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -148,6 +195,7 @@ export default function CounselorDashboard() {
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "profile" && <ProfileTab />}
           {activeTab === "appointments" && <AppointmentsTab />}
+          {activeTab === "interview" && <InterviewDashboard />}
           {activeTab === "calendar" && <Calendar />}
           {activeTab === "availability" && <AvailabilityTab />}
           {activeTab === "manage-plans" && <ManagePlansTab />}

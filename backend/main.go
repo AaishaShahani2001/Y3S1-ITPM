@@ -27,7 +27,7 @@ func main() {
 
 	// CORS CONFIGURATION
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:5174"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -43,5 +43,5 @@ func main() {
 	if port == "" {
 		port = "3000"
 	}
-	r.Run(":" + port)
+	r.Run("0.0.0.0:" + port)
 }

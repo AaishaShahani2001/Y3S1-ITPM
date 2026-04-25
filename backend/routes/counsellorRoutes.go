@@ -27,6 +27,9 @@ func CounsellorRoutes(r *gin.Engine) {
 	// PROTECTED route - must be logged in to update profile
 	r.PUT("/api/counsellor/profile/:userId", controllers.UpdateCounsellorProfile)
 
+	// Pending counselor/owner interview timeline endpoint.
+	r.GET("/api/counsellor/interview/me", middleware.RequireAuth, controllers.GetMyInterviewTimeline)
+
 	// ================ AAISHA'S ROUTES ================ //
 
 	r.GET("/api/counsellor/location/all", middleware.RequireAuth, controllers.GetCounsellorsForLocationAssignment)

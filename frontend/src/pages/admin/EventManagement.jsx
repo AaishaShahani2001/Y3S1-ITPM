@@ -280,6 +280,13 @@ export default function EventManagement() {
                 </button>
 
                 <button
+                  onClick={() => navigate(`/qr-scanner/${e.ID}`)}
+                  className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+                >
+                  Scan QR
+                </button>
+
+                <button
                   onClick={() => deleteEvent(e.ID)}
                   className="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600"
                 >

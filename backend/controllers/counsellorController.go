@@ -88,6 +88,8 @@ func ApplyCounsellor(c *gin.Context) {
 		NICFile:         nicPath,
 		CertificateFile: certPath,
 		Status:          "pending",
+		// New applications start without a viva schedule.
+		InterviewStatus: "unscheduled",
 	}
 
 	initializers.DB.Create(&application)
@@ -245,6 +247,41 @@ func RemoveProfileImage(c *gin.Context) {
 	})
 }
 
+// GetMyInterviewTimeline returns the logged-in counselor application's interview timeline data.
+func GetMyInterviewTimeline(c *gin.Context) {
+	// Uses authenticated user context, so a user can only read their own timeline.
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user, ok := userVal.(models.User)
+	if !ok || user.ID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var application models.CounsellorApplication
+	// Fetch latest application row tied to current user.
+	if err := initializers.DB.Where("user_id = ?", user.ID).First(&application).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Counsellor application not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		// Interview fields are consumed by pending-counselor dashboard timeline UI.
+		"id":              application.ID,
+		"fullName":        application.FullName,
+		"status":          application.Status,
+		"createdAt":       application.CreatedAt,
+		"interviewDate":   application.InterviewDate,
+		"interviewMode":   application.InterviewMode,
+		"interviewNote":   application.InterviewNote,
+		"interviewStatus": application.InterviewStatus,
+		"updatedAt":       application.UpdatedAt,
+	})
+}
+
 //============= AAISHA'S CONTROLLERS =============//
 
 // GetCounsellorsForLocationAssignment returns approved counselors for admin location assignment.
@@ -391,9 +428,9 @@ func GetMyAssignedLocation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"workplace":        counsellor.Workplace,
-		"locationReason":   counsellor.LocationReason,
-		"assignLocation":   counsellor.Workplace,
-		"locationNote":     counsellor.LocationReason,
+		"workplace":      counsellor.Workplace,
+		"locationReason": counsellor.LocationReason,
+		"assignLocation": counsellor.Workplace,
+		"locationNote":   counsellor.LocationReason,
 	})
 }
