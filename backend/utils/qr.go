@@ -19,31 +19,31 @@ func GenerateQR(regID uint, eventID uint, userID uint) (string, string, error) {
 
 	jsonData, _ := json.Marshal(data)
 
-	// ✅ CREATE FOLDER
+	// CREATE FOLDER
 	err := os.MkdirAll("uploads/qr", os.ModePerm)
 	if err != nil {
 		return "", "", err
 	}
 
-	// ✅ FILE PATH
+	// FILE PATH
 	filePath := fmt.Sprintf("uploads/qr/qr_%d.png", regID)
 
-	// ✅ GENERATE PNG
+	// GENERATE PNG
 	png, err := qrcode.Encode(string(jsonData), qrcode.Medium, 256)
 	if err != nil {
 		return "", "", err
 	}
 
-	// ✅ SAVE FILE
+	// SAVE FILE
 	err = os.WriteFile(filePath, png, 0644)
 	if err != nil {
 		return "", "", err
 	}
 
-	// ✅ BASE64 (FOR EMAIL)
+	// BASE64 (FOR EMAIL)
 	base64QR := base64.StdEncoding.EncodeToString(png)
 
-	// ✅ URL (FOR FRONTEND)
+	// URL (FOR FRONTEND)
 	url := fmt.Sprintf("http://localhost:3000/%s", filePath)
 
 	return base64QR, url, nil

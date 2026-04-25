@@ -13,13 +13,13 @@ export default function EventList() {
       .then((res) => res.json())
       .then((data) => {
 
-        const now = new Date(); // ✅ current date + time
+        const now = new Date(); 
 
         const upcoming = data.filter((e) => {
           // combine date + time
           const eventDateTime = new Date(`${e.Date}T${e.Time}`);
 
-          return eventDateTime >= now; // ✅ correct comparison
+          return eventDateTime >= now; 
         });
 
         setEvents(upcoming);

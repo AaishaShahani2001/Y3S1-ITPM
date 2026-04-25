@@ -138,4 +138,94 @@ test.describe("Event booking registration", () => {
       gender: "Female",
     });
   });
+  
+
+  //Empty form submission
+  test("shows validation errors for empty form", async ({ page }) => {
+    await seedLoggedInStudent(page);
+    await mockEventApis(page);
+    await page.goto("/register-event/1");
+
+    await page.getByRole("button", { name: "Confirm Registration" }).click();
+
+    await expect(page.getByText("Full Name is required")).toBeVisible();
+  });
+
+
+  // Missing name
+  test("requires full name", async ({ page }) => {
+    await seedLoggedInStudent(page);
+    await mockEventApis(page);
+    await page.goto("/register-event/1");
+
+    await fillValidRegistrationForm(page);
+    await page.locator('input[name="name"]').fill("");
+
+    await page.getByRole("button", { name: "Confirm Registration" }).click();
+
+    await expect(page.getByText("Full Name is required")).toBeVisible();
+  });
+
+  // Missing degree
+  test("requires degree field", async ({ page }) => {
+    await seedLoggedInStudent(page);
+    await mockEventApis(page);
+    await page.goto("/register-event/1");
+
+    await fillValidRegistrationForm(page);
+    await page.locator('input[name="degree"]').fill("");
+
+    await page.getByRole("button", { name: "Confirm Registration" }).click();
+
+    await expect(page.getByText("Degree Programme is required")).toBeVisible();
+  });
+
+
+  // Unauthorized token test
+  test("fails when token is missing", async ({ page }) => {
+    const spy = await mockEventApis(page);
+    await page.goto("/register-event/1");
+
+    await fillValidRegistrationForm(page);
+    await page.getByRole("button", { name: "Confirm Registration" }).click();
+
+    await expect.poll(spy.getCapturedAuthorization).toBe("");
+  });
+
+
+  // Slow API response
+  test("handles slow API response", async ({ page }) => {
+    await seedLoggedInStudent(page);
+
+    await page.route("**/api/events/register", async (route) => {
+      await new Promise((r) => setTimeout(r, 2000));
+      await route.fulfill({
+        status: 200,
+        body: JSON.stringify({ message: "ok" }),
+      });
+    });
+
+    await page.goto("/register-event/1");
+    await fillValidRegistrationForm(page);
+
+    await page.getByRole("button", { name: "Confirm Registration" }).click();
+
+    await expect(page.getByText("🎉 Registration Successful!")).toBeVisible();
+  });
+
+  // Prevent double submit
+  test("prevents double submission", async ({ page }) => {
+    await seedLoggedInStudent(page);
+    await mockEventApis(page);
+    await page.goto("/register-event/1");
+
+    await fillValidRegistrationForm(page);
+
+    const btn = page.getByRole("button", { name: "Confirm Registration" });
+
+    await btn.click();
+    await btn.click(); // double click
+
+    await expect(page.getByText("🎉 Registration Successful!")).toBeVisible();
+  });
 });

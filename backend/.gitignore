@@ -135,4 +135,7 @@ dist
 !.yarn/versions
 
 uploads/
-
+node_modules/
+.env
+dist/
+build/

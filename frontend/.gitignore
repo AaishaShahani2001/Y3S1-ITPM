@@ -148,5 +148,6 @@ backend/uploads/
 /playwright/.cache/
 
 node_modules/
-dist/
 .env
+dist/
+build/

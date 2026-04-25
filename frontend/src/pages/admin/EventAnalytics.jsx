@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 export default function EventAnalytics({ event, onClose }) {
   const [registrations, setRegistrations] = useState([]);
 
-  // 🔥 LOAD REGISTRATIONS
+  //  LOAD REGISTRATIONS
   useEffect(() => {
     if (!event) return;
 
@@ -12,7 +12,7 @@ export default function EventAnalytics({ event, onClose }) {
       .then(data => setRegistrations(data));
   }, [event]);
 
-  // 🔥 REMOVE REGISTRATION
+  //  REMOVE REGISTRATION
   const removeRegistration = async (id) => {
     await fetch(`http://localhost:3000/api/events/register/${id}`, {
       method: "DELETE",

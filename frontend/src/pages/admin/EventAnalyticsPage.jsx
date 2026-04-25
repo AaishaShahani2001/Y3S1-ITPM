@@ -33,7 +33,7 @@ export default function EventAnalyticsPage() {
 
   if (!event) return <div className="p-10">Loading...</div>;
 
-  // ✅ FIXED FILTERS (lowercase)
+  //  FILTERS 
   const confirmedRegs = registrations.filter(r => r.status !== "waitlist");
   const waitlistRegs = registrations.filter(r => r.status === "waitlist");
   const attendedRegs = registrations.filter(r => r.attended === true);
@@ -51,7 +51,7 @@ export default function EventAnalyticsPage() {
     uniMap[r.university] = (uniMap[r.university] || 0) + 1;
   });
 
-  // 📊 CHARTS
+  // CHARTS
   const pieData = {
     labels: ["Male", "Female"],
     datasets: [{
@@ -87,7 +87,7 @@ export default function EventAnalyticsPage() {
     }]
   };
 
-  // 📄 PDF
+  // PDF
   const downloadPDF = async () => {
     const doc = new jsPDF();
 
@@ -135,7 +135,7 @@ export default function EventAnalyticsPage() {
           onClick={downloadPDF}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg"
         >
-          📄 Download PDF
+          Download PDF
         </button>
       </div>
 
@@ -215,14 +215,24 @@ export default function EventAnalyticsPage() {
       {/* WAITLIST */}
       <div className="bg-white rounded shadow mb-6">
         <h3 className="p-4 font-semibold border-b">Waitlist Students</h3>
-
+        
         <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3">Name</th>
+              <th>Email</th>
+              <th>University</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
           <tbody>
             {waitlistRegs.map((r, i) => (
               <tr key={i} className="border-t">
                 <td className="p-3">{r.name}</td>
                 <td>{r.email}</td>
                 <td>{r.university}</td>
+                <td className="text-orange-500 font-medium">Waitlist</td>
               </tr>
             ))}
           </tbody>
@@ -234,6 +244,16 @@ export default function EventAnalyticsPage() {
         <h3 className="p-4 font-semibold border-b">Attended Students</h3>
 
         <table className="w-full text-sm">
+           <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3">Name</th>
+              <th>Email</th>
+              <th>University</th>
+            
+            </tr>
+          </thead>
+
+          
           <tbody>
             {attendedRegs.length === 0 ? (
               <tr>
