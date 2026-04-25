@@ -22,10 +22,14 @@ type CounsellorApplication struct {
 	About          string `json:"about"`
 	RegistrationID string `json:"registrationId" gorm:"unique;not null"`
 
-	NICFile         string    `json:"nicFile"  gorm:"not null"`
-	CertificateFile string    `json:"certificateFile"  gorm:"not null"`
-	ProfileImage    string    `json:"profileImage"`
-	Status          string    `json:"status" gorm:"type:varchar(20);default:'pending'"` // pending | approved | rejected
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	NICFile         string     `json:"nicFile"  gorm:"not null"`
+	CertificateFile string     `json:"certificateFile"  gorm:"not null"`
+	ProfileImage    string     `json:"profileImage"`
+	Status          string     `json:"status" gorm:"type:varchar(20);default:'pending'"` // pending | approved | rejected
+	InterviewDate   *time.Time `json:"interviewDate"`
+	InterviewMode   string     `json:"interviewMode"`   // online | onsite
+	InterviewNote   string     `json:"interviewNote"`   // optional admin instructions
+	InterviewStatus string     `json:"interviewStatus"` // unscheduled | scheduled | completed | cancelled
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }

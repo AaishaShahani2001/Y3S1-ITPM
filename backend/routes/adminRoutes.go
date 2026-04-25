@@ -21,4 +21,9 @@ func AdminRoutes(r *gin.Engine) {
 
 	admin.PUT("/applications/:id/reject", controllers.RejectCounsellor)
 
+	// Admin schedules/updates viva interview date, mode, and note.
+	admin.PUT("/applications/:id/interview", controllers.ScheduleCounsellorInterview)
+	admin.PUT("/applications/:id/interview/complete", controllers.CompleteCounsellorInterview)
+	admin.PUT("/applications/:id/interview/cancel", controllers.CancelCounsellorInterview)
+
 }

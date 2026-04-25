@@ -4,6 +4,7 @@ import {
   FaStethoscope, FaChartLine, FaSignOutAlt, FaBell, FaSearch
 } from "react-icons/fa";
 import { FiMenu, FiX } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = "http://localhost:3000";
 import OverviewTab from "../../components/counselor/OverviewTab";
@@ -12,6 +13,7 @@ import ProfileTab from "../../components/counselor/ProfileTab";
 import AvailabilityTab from "../../components/counselor/AvailabilityTab";
 import AppointmentsTab from "../../components/counselor/AppointmentsTab";
 import ManagePlansTab from "../../components/counselor/ManagePlansTab";
+import InterviewDashboard from "../../components/counselor/InterviewDashboard";
 import logo from "../../assets/Logo.png";
 
 const TABS = [
@@ -20,10 +22,12 @@ const TABS = [
   { id: "profile", label: "My Profile", icon: <FaUserCircle /> },
   { id: "availability", label: "Manage Availability", icon: <FaCalendarPlus /> },
   { id: "appointments", label: "Student Appointments", icon: <FaClipboardList /> },
+  { id: "interview", label: "Interview Timeline", icon: <FaCalendar /> },
   { id: "manage-plans", label: "Manage Treatment Plans", icon: <FaStethoscope /> },
 ];
 
 export default function CounselorDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const user = (() => {
@@ -35,11 +39,24 @@ export default function CounselorDashboard() {
     }
   })();
 
+  useEffect(() => {
+    if (!user?.token) {
+      navigate("/auth");
+      return;
+    }
+    const appStatus = (user?.counselorApplication?.status || "").toLowerCase();
+    // Pending applicants are restricted to the dedicated pending interview dashboard.
+    if (appStatus === "pending") {
+      navigate("/pending-counselor-dashboard");
+    }
+  }, [navigate, user?.token, user?.counselorApplication?.status]);
+
   const [headerProfile, setHeaderProfile] = useState(() => ({
     fullName: user?.name || "",
     specialization: "",
     profileImage: "",
   }));
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -67,6 +84,10 @@ export default function CounselorDashboard() {
   const avatarUrl = headerProfile.profileImage
     ? `${API_BASE}/${headerProfile.profileImage}`
     : null;
+
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [avatarUrl]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -154,10 +175,11 @@ export default function CounselorDashboard() {
                 </p>
               </div>
               <div className="w-8 h-8 shrink-0 rounded-lg bg-slate-200 overflow-hidden ring-2 ring-slate-50 ring-offset-1 flex items-center justify-center">
-                {avatarUrl ? (
+                {avatarUrl && !avatarLoadError ? (
                   <img
                     src={avatarUrl}
                     alt=""
+                    onError={() => setAvatarLoadError(true)}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -173,6 +195,7 @@ export default function CounselorDashboard() {
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "profile" && <ProfileTab />}
           {activeTab === "appointments" && <AppointmentsTab />}
+          {activeTab === "interview" && <InterviewDashboard />}
           {activeTab === "calendar" && <Calendar />}
           {activeTab === "availability" && <AvailabilityTab />}
           {activeTab === "manage-plans" && <ManagePlansTab />}
