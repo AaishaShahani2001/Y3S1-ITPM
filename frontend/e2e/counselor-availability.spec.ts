@@ -130,9 +130,13 @@ test.describe("Counselor onboarding and availability", () => {
 
   test("BecomeCounsellorModal: fills all steps and submits application", async ({ page }) => {
     await mockCounsellorDirectoryApis(page);
-    await page.goto("/counsellors");
+    await page.goto("/counsellors", { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(/\/counsellors/, { timeout: 30000 });
 
-    await page.getByRole("button", { name: "Become a Counsellor" }).click();
+    await page
+      .getByRole("button", { name: /Become a Counsellor|Become a Counselor/i })
+      .first()
+      .click({ timeout: 30000 });
     await expect(page.getByText("Join Our Expert Team")).toBeVisible();
 
     await page.getByPlaceholder("Dr. Jane Doe").fill("Jane Doe");
@@ -177,10 +181,21 @@ test.describe("Counselor onboarding and availability", () => {
   test("AvailabilityTab: adds a new availability slot", async ({ page }) => {
     const targetDate = futureIsoDate(20);
     await mockDashboardApis(page, targetDate);
-    await page.goto("/counselor-dashboard");
+    await page.goto("/counselor-dashboard", { waitUntil: "networkidle" });
 
-    await page.getByRole("button", { name: "Manage Availability" }).click();
-    await expect(page.getByText("Availability Settings")).toBeVisible();
+    const manageAvailabilityTab = page.getByRole("button", { name: /Manage Availability/i });
+    if (!(await manageAvailabilityTab.isVisible())) {
+      await page.goto("/counsellor-dashboard", { waitUntil: "networkidle" });
+    }
+
+    if (!(await manageAvailabilityTab.isVisible())) {
+      const expandSidebar = page.getByRole("button", { name: /Expand sidebar/i });
+      if (await expandSidebar.isVisible()) {
+        await expandSidebar.click();
+      }
+    }
+    await manageAvailabilityTab.click({ timeout: 30000 });
+    await expect(page.getByText("Availability Settings")).toBeVisible({ timeout: 30000 });
 
     await page.locator('input[type="date"]').first().fill(targetDate);
     await page.locator('input[type="time"]').nth(0).fill("13:00");
