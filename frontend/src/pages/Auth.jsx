@@ -73,9 +73,32 @@ export default function Auth() {
         JSON.stringify({
           ...res.data.user,
           token: res.data.token,
+          counselorApplication: res.data.counselorApplication || null,
         })
       );
       setTimeout(() => {
+        const app = res?.data?.counselorApplication;
+        const appStatus = (app?.status || "").toLowerCase();
+        const role = (res?.data?.user?.role || "").toLowerCase();
+
+        // Pending counselor applicants get a separate interview-tracking dashboard.
+        if (appStatus === "pending") {
+          navigate("/pending-counselor-dashboard");
+          return;
+        }
+        if (role === "admin") {
+          navigate("/admin-dashboard");
+          return;
+        }
+        if (role === "counselor") {
+          navigate("/counselor-dashboard");
+          return;
+        }
+        if (role === "student") {
+          navigate("/student-dashboard");
+          return;
+        }
+
         const redirect = localStorage.getItem("redirectAfterLogin");
         if (redirect === "booking-step3" || redirect === "booking-step4") {
           navigate("/book-appointment");

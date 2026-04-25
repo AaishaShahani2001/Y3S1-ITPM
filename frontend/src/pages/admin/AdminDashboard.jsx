@@ -8,6 +8,7 @@ import AssignLocation from '../../components/admin/AssignLocation';
 import AdminOverview from '../../components/admin/AdminOverview';
 import AllBookings from '../../components/admin/AllBookings';
 import DoctorApprovals from '../../components/admin/DoctorApprovals';
+import CounselorVivaShowCase from '../../components/admin/CounselorVivaShowCase';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -22,6 +23,7 @@ const AdminDashboard = () => {
     { name: 'Overview', icon: <FiGrid />, component: <AdminOverview /> },
     { name: 'All Bookings', icon: <FiCalendar />, component: <AllBookings /> },
     { name: 'Doctor Approvals', icon: <FiUserCheck />, component: <DoctorApprovals /> },
+    { name: 'Counselor Viva', icon: <FiCalendar />, component: <CounselorVivaShowCase /> },
     { name: 'Assign Locations', icon: <FiUserCheck />, component: <AssignLocation /> },
     { name: 'Event Management', icon: <FiCalendar />, component: <EventManagement /> },
   ];

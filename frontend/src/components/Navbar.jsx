@@ -36,6 +36,12 @@ export default function Navbar() {
 
   const handleProfileClick = () => {
     if (!user) return;
+    // Pending counselor application users always enter interview-tracking dashboard.
+    const appStatus = (user?.counselorApplication?.status || "").toLowerCase();
+    if (appStatus === "pending") {
+      navigate("/pending-counselor-dashboard");
+      return;
+    }
     if (user.role === "student") {
       navigate("/student-dashboard");
     } else if (user.role === "counselor") {

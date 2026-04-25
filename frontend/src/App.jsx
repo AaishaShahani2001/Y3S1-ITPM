@@ -19,6 +19,7 @@ import ContactUs from "./pages/ContactUs";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CounselorDashboard from "./pages/counselor/CounselorDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
+import PendingCounselorDashboard from "./pages/pending/PendingCounselorDashboard";
 
 import Counsellors from "./pages/Counsellors";
 import CounsellorDetails from "./pages/CounsellorDetails";
@@ -62,6 +63,8 @@ export default function App() {
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Counselor Dashboard */}
           <Route path="/counselor-dashboard" element={<CounselorDashboard />} />
+          {/* Dedicated dashboard for users with pending counselor application interview flow */}
+          <Route path="/pending-counselor-dashboard" element={<PendingCounselorDashboard />} />
           {/* Student Dashboard */}
           <Route path="/student-dashboard" element={<StudentDashboard />} />
 
