@@ -8,6 +8,8 @@ import {
   FaSearch,
   FaUserCircle,
 } from "react-icons/fa";
+import { FiMenu, FiX } from "react-icons/fi";
+import { useLocation } from "react-router-dom";
 
 const API_BASE = "http://localhost:3000";
 
@@ -17,6 +19,8 @@ import MyWaitListTab from "../../components/student/MyWaitListTab";
 import TreatmentPlanTab from "../../components/student/TreatmentPlanTab";
 import MyReportView from "../../components/student/MyReportView";
 import OverviewTab from "../../components/student/OverviewTab";
+import MoodTracker from "../../components/student/MoodTracker";
+import logo from "../../assets/Logo.png";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: <FaThLarge /> },
@@ -25,19 +29,24 @@ const TABS = [
   { id: "treatment", label: "Treatment Plan", icon: <FaCalendarCheck /> },
   { id: "reports", label: "My Reports", icon: <FaFileAlt /> },
   { id: "events", label: "My Events", icon: <FaCalendarCheck /> },
+  { id: "mood-tracker", label: "Mood Tracker", icon: <FaCalendarCheck /> },
 ];
 
 export default function StudentDashboard() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(null);
   const [reportUnlocked, setReportUnlocked] = useState(false);
+  const [reportPlanId, setReportPlanId] = useState(null);
   const [headerProfile, setHeaderProfile] = useState({
     displayName: "",
     subtitle: "Student",
   });
 
-  const handleViewReport = () => {
-    setReportUnlocked(true);
+ const handleViewReport = (planId) => {
+    setReportPlanId(planId ?? null);
+    setReportUnlocked(!!planId);
     setActiveTab("reports");
   };
 
@@ -90,21 +99,30 @@ export default function StudentDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab && TABS.some((t) => t.id === tab)) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
+
   const handleLogout = () => {
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    window.location.href = "/auth";
   };
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
 
       {/* SIDEBAR */}
-      <aside className="w-20 md:w-64 bg-slate-900 text-white flex flex-col sticky top-0 h-screen">
+      <aside
+        className={`relative bg-[#fff9ee] text-slate-800 flex flex-col sticky top-0 h-screen border-r border-[#e8dcc3] transition-all duration-300 ${
+          isSidebarOpen ? "w-64" : "w-20"
+        }`}
+      >
         <div className="p-4 md:p-8 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-black">
-            M
-          </div>
-          <span className="hidden md:block font-black">MindBridge</span>
+          <img src={logo} alt="MindBridge logo" className="w-8 h-8 rounded-lg object-cover shadow-lg shadow-blue-500/20" />
+          {isSidebarOpen && <span className="font-black">MindBridge</span>}
         </div>
 
         <nav className="flex-1 mt-6 px-3 space-y-1.5">
@@ -115,20 +133,33 @@ export default function StudentDashboard() {
               className={`w-full flex items-center gap-3 p-3 rounded-xl ${
                 activeTab === tab.id
                   ? "bg-blue-600 text-white"
-                  : "text-slate-400 hover:bg-slate-800"
+                  : "text-slate-600 hover:bg-[#f3e8cf] hover:text-slate-900"
               }`}
             >
               {tab.icon}
-              <span className="hidden md:block">{tab.label}</span>
+              {isSidebarOpen && <span>{tab.label}</span>}
             </button>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
-          <button onClick={handleLogout} className="flex gap-2 text-red-400">
-            <FaSignOutAlt /> Logout
+        <div className="p-4 border-t border-[#e8dcc3]">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 text-rose-600 hover:bg-rose-50 rounded-xl px-3 py-2 transition-colors"
+          >
+            <FaSignOutAlt /> {isSidebarOpen && "Logout"}
           </button>
         </div>
+
+        <button
+          type="button"
+          aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          onClick={() => setSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-3 top-24 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-[#e8dcc3] bg-[#fff9ee] text-slate-500 shadow-sm transition-colors hover:border-blue-400 hover:text-blue-500"
+        >
+          {isSidebarOpen ? <FiX size={14} /> : <FiMenu size={14} />}
+        </button>
       </aside>
 
       {/* MAIN */}
@@ -182,10 +213,14 @@ export default function StudentDashboard() {
             <TreatmentPlanTab onViewReport={handleViewReport} />
           )}
           {activeTab === "reports" && (
-            <MyReportView reportUnlocked={reportUnlocked} />
+            <MyReportView reportUnlocked={reportUnlocked} 
+            reportPlanId={reportPlanId}
+            
+            />
           )}
 
           {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "mood-tracker" && <MoodTracker />}
 
         </div>
       </main>
