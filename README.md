@@ -6,6 +6,7 @@ MindBridge is a university wellbeing and counseling platform that supports:
 - counselor queue/availability management
 - admin approval and operational oversight
 - mood analysis and mood tracking workflows
+- AI mental wellbeing chatbot guidance (Groq)
 
 ---
 
@@ -23,6 +24,7 @@ MindBridge is a university wellbeing and counseling platform that supports:
 - GORM
 - JWT authentication
 - Brevo SMTP email notifications
+- Groq API (`llama-3.1-8b-instant` / fallback-ready)
 
 ---
 
@@ -61,11 +63,17 @@ BREVO_SMTP_PORT=587
 BREVO_SMTP_USER=your_brevo_smtp_user
 BREVO_SMTP_KEY=your_brevo_smtp_key
 BREVO_SMTP_FROM="MindBridge <no-reply@yourdomain.com>"
+
+# AI chatbot (Groq)
+GROQ_API_KEY=your_groq_api_key
+# Optional override model
+GROQ_MODEL=llama-3.1-8b-instant
 ```
 
 Notes:
 - If Brevo vars are not set, APIs still work, but email sending is skipped/fails safely.
 - `PORT` defaults to `3000` when not provided.
+- If `GROQ_MODEL` is not set, backend tries built-in supported models automatically.
 
 ---
 
@@ -89,7 +97,7 @@ npm install
 npm run dev
 ```
 
-Frontend URL: `http://localhost:5173`
+Frontend URL: typically `http://localhost:5173` (or `http://localhost:5174` if 5173 is occupied)
 
 ---
 
@@ -143,6 +151,30 @@ Base group: `/api/admin` (all auth protected)
 - `PUT /api/admin/applications/:id/approve` - approve counselor
 - `PUT /api/admin/applications/:id/reject` - reject counselor
 - `GET /api/admin/appointments` - list all appointments for admin dashboards
+
+---
+
+### 3.1) Counselor Viva Showcase (Admin)
+
+This module is available in Admin Dashboard as:
+- `Counselor Viva` tab (`src/components/admin/CounselorVivaShowCase.jsx`)
+
+Purpose:
+- review pending counselor applications
+- schedule/reschedule viva interviews
+- mark viva status as completed or cancelled
+- track interview mode (online/onsite) and optional interview notes
+
+Main API calls used by this module:
+- `GET /api/admin/applications` - fetch pending applications and interview metadata
+- `PUT /api/admin/applications/:id/interview` - schedule or reschedule interview
+- `PUT /api/admin/applications/:id/interview/complete` - mark interview as completed
+- `PUT /api/admin/applications/:id/interview/cancel` - cancel interview
+
+Scheduling rules in UI:
+- interview date/time is required
+- interview date/time cannot be in the past
+- minimum selectable time is current time + ~1 minute
 
 ---
 
@@ -241,6 +273,33 @@ Each record stores:
 
 ---
 
+### 10) AI Chatbot Workflow (Mental Wellbeing Support)
+
+Base route:
+- `POST /api/chatbot/message`
+
+Request:
+```json
+{
+  "message": "I feel stressed before exams and cannot focus."
+}
+```
+
+Response:
+```json
+{
+  "reply": "supportive response from chatbot...",
+  "model": "llama-3.1-8b-instant"
+}
+```
+
+Notes:
+- Chatbot endpoint is proxied through backend; API key is never exposed to frontend.
+- Frontend widget is mounted globally in `src/App.jsx` via `src/components/MentalHealthChatbot.jsx`.
+- This is supportive guidance, not emergency care; users in immediate danger should contact local emergency services.
+
+---
+
 ## Data/Model Notes
 
 - Mood tracker enforces one record per student per day using a composite unique index:
@@ -258,6 +317,7 @@ Each record stores:
 - Counselor flow: cancel appointment with note -> student receives cancellation email.
 - Mood flow: save daily tracker -> verify recommended category/counselors in response.
 - Admin flow: approve/reject counselor applications.
+- Chatbot flow: open widget -> send message -> receive AI response with model in payload.
 
 ---
 
