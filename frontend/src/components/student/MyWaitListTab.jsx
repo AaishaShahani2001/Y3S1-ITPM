@@ -19,7 +19,6 @@ export default function MyWaitListTab() {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [leavingId, setLeavingId] = useState(null);
-    const [nowMs, setNowMs] = useState(Date.now());
     const [bookConfirmEntry, setBookConfirmEntry] = useState(null);
 
     const user = (() => {
@@ -63,11 +62,6 @@ export default function MyWaitListTab() {
         loadWaitlist();
     }, [user?.token]);
 
-    useEffect(() => {
-        const interval = setInterval(() => setNowMs(Date.now()), 1000);
-        return () => clearInterval(interval);
-    }, []);
-
     const leaveQueue = async (entry) => {
         const id = entry.id || entry.ID;
         if (!id) {
@@ -107,11 +101,6 @@ export default function MyWaitListTab() {
             toast.error("Book Now is only available after you are notified that a slot opened.");
             return;
         }
-        const remainingSeconds = getRemainingSeconds(entry);
-        if (remainingSeconds <= 0) {
-            toast.error("Your booking window has expired — rejoin the waitlist if needed.");
-            return;
-        }
         const cid = entry.counsellorId || entry.counsellorID;
         if (!cid) {
             toast.error("Counselor details are missing.");
@@ -146,26 +135,6 @@ export default function MyWaitListTab() {
         if (s === "notified") return "bg-blue-100 text-blue-700 border-blue-200";
         if (s === "fulfilled") return "bg-green-100 text-green-700 border-green-200";
         return "bg-red-100 text-red-700 border-red-200";
-    };
-
-    const getRemainingSeconds = (entry) => {
-        const statusLower = (entry.status || "").toLowerCase();
-        if (statusLower !== "notified") return 0;
-        const raw = entry.notifiedAt;
-        if (raw) {
-            const notifiedAt = new Date(raw).getTime();
-            if (Number.isFinite(notifiedAt)) {
-                const expiresAt = notifiedAt + 8 * 60 * 1000;
-                return Math.max(0, Math.floor((expiresAt - nowMs) / 1000));
-            }
-        }
-        return 0;
-    };
-
-    const formatMMSS = (seconds) => {
-        const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
-        const ss = String(seconds % 60).padStart(2, "0");
-        return `${mm}:${ss}`;
     };
 
     const sortedEntries = useMemo(() => {
@@ -204,8 +173,7 @@ export default function MyWaitListTab() {
                         const id = entry.id || entry.ID;
                         const statusLower = (entry.status || "").toLowerCase();
                         const isNotified = statusLower === "notified";
-                        const remainingSeconds = getRemainingSeconds(entry);
-                        const canBookNow = isNotified && remainingSeconds > 0;
+                        const canBookNow = isNotified;
                         return (
                             <div key={id} className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
                                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -230,9 +198,7 @@ export default function MyWaitListTab() {
                                         </div>
                                         {isNotified && (
                                             <p className="text-xs font-bold text-blue-700 mt-1">
-                                                {canBookNow
-                                                    ? `Time left to book: ${formatMMSS(remainingSeconds)}`
-                                                    : "Booking window expired"}
+                                                Slot is available to book now.
                                             </p>
                                         )}
                                     </div>
