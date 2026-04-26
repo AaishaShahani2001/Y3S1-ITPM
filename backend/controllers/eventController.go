@@ -1,0 +1,556 @@
+package controllers
+
+import (
+	"backend/email"
+	"backend/initializers"
+	"backend/models"
+	"backend/utils"
+	"fmt"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+)
+
+// =======================
+// REQUEST STRUCT
+// =======================
+type RegisterInput struct {
+	EventID    int    `json:"event_id"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	Phone      string `json:"phone"`
+	University string `json:"university"`
+	Faculty    string `json:"faculty"`
+	Level      string `json:"level"`
+	Degree     string `json:"degree"`
+	Gender     string `json:"gender"`
+}
+
+// =======================
+// REGISTER EVENT
+// =======================
+func RegisterEvent(c *gin.Context) {
+
+	var input RegisterInput
+
+	// VALIDATE INPUT
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// GET USER ID FROM TOKEN
+	userIDValue, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var userID uint
+
+	switch v := userIDValue.(type) {
+	case float64:
+		userID = uint(v)
+	case uint:
+		userID = v
+	case int:
+		userID = uint(v)
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// CHECK DUPLICATE REGISTRATION
+	var existing models.Registration
+	err := initializers.DB.
+		Where("user_id = ? AND event_id = ?", userID, input.EventID).
+		First(&existing).Error
+
+	if err == nil && existing.ID != 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "You have already registered for this event",
+		})
+		return
+	}
+
+	// GET EVENT (SAFE)
+	var event models.Event
+	if err := initializers.DB.First(&event, input.EventID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	// COUNT CONFIRMED ONLY
+	var confirmedCount int64
+	initializers.DB.
+		Model(&models.Registration{}).
+		Where("event_id = ? AND status = ?", input.EventID, "confirmed").
+		Count(&confirmedCount)
+
+	// DECIDE STATUS
+	status := "confirmed"
+	if int(confirmedCount) >= event.Capacity {
+		status = "waitlist"
+	}
+
+	// CREATE REGISTRATION
+	reg := models.Registration{
+		UserID:     userID,
+		EventID:    uint(input.EventID),
+		Name:       input.Name,
+		Email:      input.Email,
+		Phone:      input.Phone,
+		University: input.University,
+		Faculty:    input.Faculty,
+		Level:      input.Level,
+		Degree:     input.Degree,
+		Gender:     input.Gender,
+		Status:     status,
+	}
+
+	result := initializers.DB.Create(&reg)
+
+	// CHECK DB ERROR FIRST
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Registration failed",
+		})
+		return
+	}
+
+	// GENERATE QR
+	qrBase64 := ""
+	qrURL := ""
+
+	fmt.Println(qrBase64)
+
+	if reg.Status == "confirmed" {
+
+		base64QR, urlQR, err := utils.GenerateQR(reg.ID, reg.EventID, reg.UserID)
+
+		if err != nil {
+			fmt.Println("QR ERROR:", err)
+		} else {
+			qrBase64 = base64QR
+			qrURL = urlQR
+
+			// ✅ SAVE URL TO DB (for frontend)
+			reg.QR = qrURL
+			initializers.DB.Save(&reg)
+		}
+	}
+
+	// SEND EMAIL
+	go email.SendEventRegistrationEmail(
+		reg.Email,
+		reg.Name,
+		event.Title,
+		event.Date,
+		event.Location,
+		qrURL,
+		reg.Status,
+	)
+
+	// RESPONSE
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Event registration successful",
+		"status":  reg.Status,
+		"qr":      qrURL, // FRONTEND USE URL
+	})
+}
+
+// =======================
+// GET ALL REGISTRATIONS
+// =======================
+func GetRegistrations(c *gin.Context) {
+
+	var registrations []models.Registration
+
+	initializers.DB.Find(&registrations)
+
+	c.JSON(http.StatusOK, registrations)
+}
+
+// =======================
+// GET REGISTRATIONS BY EVENT
+// =======================
+func GetRegistrationsByEvent(c *gin.Context) {
+
+	id := c.Param("id")
+
+	var registrations []models.Registration
+
+	initializers.DB.Where("event_id = ?", id).Find(&registrations)
+
+	c.JSON(http.StatusOK, registrations)
+}
+
+// =======================
+// EVENT ANALYTICS
+// =======================
+func GetEventAnalytics(c *gin.Context) {
+
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid event ID"})
+		return
+	}
+	eventID := uint(id)
+
+	var registrations []models.Registration
+	initializers.DB.Where("event_id = ?", eventID).Find(&registrations)
+
+	total := len(registrations)
+
+	confirmed := 0
+	waitlist := 0
+	male := 0
+	female := 0
+
+	for _, r := range registrations {
+
+		if r.Status == "confirmed" {
+			confirmed++
+
+			switch r.Gender {
+			case "Male":
+				male++
+			case "Female":
+				female++
+			}
+		} else {
+			waitlist++
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"total":         total,
+		"waitlist":      waitlist,
+		"male":          male,
+		"female":        female,
+		"registrations": registrations, 
+	})
+}
+
+// =======================
+// CREATE EVENT
+// =======================
+func CreateEvent(c *gin.Context) {
+
+	title := c.PostForm("title")
+	description := c.PostForm("description")
+	date := c.PostForm("date")
+	time := c.PostForm("time")
+	location := c.PostForm("location")
+
+	capacityStr := c.PostForm("capacity")
+	capacity, _ := strconv.Atoi(capacityStr)
+
+	file, err := c.FormFile("image")
+	var imagePath string
+
+	if err == nil {
+		imagePath = "uploads/" + file.Filename
+		c.SaveUploadedFile(file, imagePath)
+
+	}
+
+	event := models.Event{
+		Title:       title,
+		Description: description,
+		Date:        date,
+		Time:        time,
+		Location:    location,
+		Capacity:    capacity,
+		Image:       imagePath,
+	}
+
+	initializers.DB.Create(&event)
+
+	c.JSON(http.StatusOK, event)
+}
+
+// =======================
+// GET EVENTS
+// =======================
+func GetEvents(c *gin.Context) {
+
+	var events []models.Event
+	initializers.DB.Find(&events)
+
+	var result []gin.H
+
+	for _, e := range events {
+
+		var count int64
+
+		// count registrations
+		initializers.DB.
+			Model(&models.Registration{}).
+			Where("event_id = ?", e.ID).
+			Count(&count)
+
+		result = append(result, gin.H{
+			"ID":          e.ID,
+			"Title":       e.Title,
+			"Description": e.Description,
+			"Date":        e.Date,
+			"Time":        e.Time,
+			"Location":    e.Location,
+			"Capacity":    e.Capacity,
+			"Image":       e.Image,
+			"Registered":  count,
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// =======================
+// DELETE EVENT
+// =======================
+func DeleteEvent(c *gin.Context) {
+	idParam := c.Param("id")
+
+	id, _ := strconv.Atoi(idParam)
+
+	println("Deleting event:", id)
+
+	// DELETE RELATED REGISTRATIONS
+	res := initializers.DB.
+		Where("event_id = ?", uint(id)).
+		Delete(&models.Registration{})
+
+	println("Deleted registrations:", res.RowsAffected)
+
+	// DELETE EVENT
+	initializers.DB.Delete(&models.Event{}, id)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Event and registrations deleted successfully",
+	})
+}
+
+// =======================
+// UPDATE EVENT
+// =======================
+func UpdateEvent(c *gin.Context) {
+
+	id := c.Param("id")
+
+	var event models.Event
+	initializers.DB.First(&event, id)
+
+	if event.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+		return
+	}
+
+	event.Title = c.PostForm("title")
+	event.Description = c.PostForm("description")
+	event.Date = c.PostForm("date")
+	event.Time = c.PostForm("time")
+	event.Location = c.PostForm("location")
+
+	capacityStr := c.PostForm("capacity")
+	capacity, _ := strconv.Atoi(capacityStr)
+	event.Capacity = capacity
+
+	initializers.DB.Save(&event)
+
+	c.JSON(http.StatusOK, event)
+}
+
+// =======================
+// GET EVENT BY ID
+// =======================
+func GetEventByID(c *gin.Context) {
+
+	id := c.Param("id")
+
+	var event models.Event
+	initializers.DB.First(&event, id)
+
+	if event.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+		return
+	}
+
+	var count int64
+
+	// count registrations
+	initializers.DB.
+		Model(&models.Registration{}).
+		Where("event_id = ?", event.ID).
+		Count(&count)
+
+	c.JSON(http.StatusOK, gin.H{
+		"ID":          event.ID,
+		"Title":       event.Title,
+		"Description": event.Description,
+		"Date":        event.Date,
+		"Time":        event.Time,
+		"Location":    event.Location,
+		"Capacity":    event.Capacity,
+		"Image":       event.Image,
+		"Registered":  count,
+	})
+}
+
+// =======================
+// GET STUDENT EVENTS
+// =======================
+func GetStudentEvents(c *gin.Context) {
+
+	userIDValue, exists := c.Get("userId")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID := uint(userIDValue.(float64))
+
+	var registrations []models.Registration
+
+	err := initializers.DB.
+		Preload("Event").
+		Where("user_id = ?", userID).
+		Find(&registrations).Error
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// BUILD CUSTOM RESPONSE
+	var response []gin.H
+
+	for _, r := range registrations {
+		response = append(response, gin.H{
+			"id":       r.ID,
+			"title":    r.Event.Title,
+			"date":     r.Event.Date,
+			"location": r.Event.Location,
+			"image":    r.Event.Image,
+			"status":   r.Status,
+			"qr":       r.QR, // ✅ ADD THIS LINE ONLY
+		})
+	}
+
+	c.JSON(200, response)
+}
+
+// =======================
+// DELETE REGISTRATION
+// =======================
+func DeleteRegistration(c *gin.Context) {
+	id := c.Param("id")
+
+	userIDValue, _ := c.Get("userId")
+	userID := uint(userIDValue.(float64))
+
+	var reg models.Registration
+
+	err := initializers.DB.
+		Where("id = ? AND user_id = ?", id, userID).
+		First(&reg).Error
+
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	eventID := reg.EventID
+
+	// DELETE CURRENT
+	initializers.DB.Delete(&reg)
+
+	//FIND FIRST WAITLIST
+	var waitlist models.Registration
+	err = initializers.DB.
+		Where("event_id = ? AND status = ?", eventID, "waitlist").
+		Order("created_at ASC").
+		First(&waitlist).Error
+
+	if err == nil {
+		// PROMOTE
+		waitlist.Status = "confirmed"
+		initializers.DB.Save(&waitlist)
+
+		// GENERATE QR
+		qrBase64 := ""
+		qrURL := ""
+
+		base64QR, urlQR, err := utils.GenerateQR(waitlist.ID, waitlist.EventID, waitlist.UserID)
+		if err == nil {
+			qrBase64 = base64QR
+			qrURL = urlQR
+
+			// SAVE QR URL TO DB
+			waitlist.QR = qrURL
+			initializers.DB.Save(&waitlist)
+		}
+
+		// GET EVENT DETAILS
+		var event models.Event
+		initializers.DB.First(&event, waitlist.EventID)
+
+		// SEND PROMOTION EMAIL
+		go email.SendEventRegistrationEmail(
+			waitlist.Email,
+			waitlist.Name,
+			event.Title,
+			event.Date,
+			event.Location,
+			qrBase64,
+			"confirmed",
+		)
+	}
+
+	c.JSON(200, gin.H{"message": "Deleted and waitlist updated"})
+}
+
+
+func ScanQR(c *gin.Context) {
+
+	var input struct {
+		ID      uint `json:"id"`
+		EventID uint `json:"event_id"`
+		UserID  uint `json:"user_id"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid QR format"})
+		return
+	}
+
+	var reg models.Registration
+
+	// ✅ MATCH ALL DATA (SECURE)
+	err := initializers.DB.
+		Where("id = ? AND event_id = ? AND user_id = ?", input.ID, input.EventID, input.UserID).
+		First(&reg).Error
+
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	// 🚫 PREVENT DOUBLE SCAN
+	if reg.Attended {
+		c.JSON(400, gin.H{"error": "Already scanned"})
+		return
+	}
+
+	// ✅ MARK ATTENDED
+	reg.Attended = true
+	initializers.DB.Save(&reg)
+
+	c.JSON(200, gin.H{
+		"message": "Attendance marked",
+		"name":    reg.Name,
+	})
+
+}
