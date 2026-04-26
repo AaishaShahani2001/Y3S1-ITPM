@@ -275,7 +275,7 @@ export default function BecomeCounsellorModal({ onClose }) {
                       icon={<FaUserMd />}
                       value={form.specialization}
                       onChange={(v) => setForm({ ...form, specialization: v })}
-                      options={["Stress Management", "Academic Support", "Career Guidance", "Personal Development"]}
+                      options={["Stress Management", "Academic Support", "Career Guidance", "Personal Development", "Mental Health Specialist", "Emotional Regulation Expert"]}
                       error={errors.specialization}
                     />
                     <Input
